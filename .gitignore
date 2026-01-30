@@ -1,0 +1,18 @@
+# Node.js
+node_modules/
+dist/
+.DS_Store
+
+# Enviroment Variables (Security)
+.env
+.env.local
+backend/.env
+
+# Python
+backend/__pycache__/
+backend/venv/
+*.pyc
+
+# IDEs
+.vscode/
+.idea/
