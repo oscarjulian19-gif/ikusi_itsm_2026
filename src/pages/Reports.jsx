@@ -1,351 +1,226 @@
-import React, { useMemo } from 'react';
-import { BarChart2, PieChart, TrendingUp, Activity, AlertOctagon, Clock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BarChart2, PieChart, TrendingUp, Activity, AlertOctagon, Clock, FileText, Server, Users, Layers } from 'lucide-react';
 import useCaseStore from '../store/useCaseStore';
+import useContractStore from '../store/useContractStore';
+import useCMDBStore from '../store/useCMDBStore';
 
 const Reports = () => {
     const { cases } = useCaseStore();
+    const { contracts } = useContractStore();
+    const { cis } = useCMDBStore();
 
-    // --- Analytics Calculations ---
-    const metrics = useMemo(() => {
+    const [activeTab, setActiveTab] = useState('general');
+
+    // --- Analytics ---
+    const incidentMetrics = useMemo(() => {
         const total = cases.length;
-        const open = cases.filter(c => c.status !== 'Cerrado' && c.status !== 'Resuelto').length;
-        const resolved = cases.filter(c => c.status === 'Resuelto').length;
-        const closed = cases.filter(c => c.status === 'Cerrado').length;
-
-        const priorityCounts = { P1: 0, P2: 0, P3: 0 };
-        cases.forEach(c => {
-            if (priorityCounts[c.priority] !== undefined) priorityCounts[c.priority]++;
-        });
-
-        const statusCounts = {};
-        cases.forEach(c => {
-            statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
-        });
-
-        // Mock SLA calculation (randomized for demo if not enough data)
-        const slaCompliant = Math.floor(total * 0.85);
-        const slaBreached = total - slaCompliant;
-        const slaPercentage = total > 0 ? ((slaCompliant / total) * 100).toFixed(1) : 100;
-
-        return { total, open, resolved, closed, priorityCounts, statusCounts, slaPercentage };
+        const open = cases.filter(c => ['Abierto', 'En Curso', 'En Resolución', 'Pausado'].includes(c.status)).length;
+        const resolved = cases.filter(c => c.status === 'Resuelto' || c.status === 'Cerrado').length;
+        const slaBreached = cases.filter(c => Math.random() > 0.8).length; // Mock
+        return { total, open, resolved, slaBreached };
     }, [cases]);
 
-    const maxPriority = Math.max(...Object.values(metrics.priorityCounts), 1);
+    const contractMetrics = useMemo(() => {
+        const total = contracts.length;
+        const active = contracts.filter(c => c.status === 'Activo').length;
+        const totalValue = contracts.length * 15000; // Mock Value
+        return { total, active, totalValue };
+    }, [contracts]);
+
+    const cmdbMetrics = useMemo(() => {
+        const total = cis.length;
+        const active = cis.filter(ci => ci.status === 'Activo').length;
+        return { total, active };
+    }, [cis]);
+
+    const renderKPICard = (title, value, subtext, Icon, colorClass) => (
+        <div className="kpi-card-clean">
+            <div className={`kpi-icon-wrapper ${colorClass}`}>
+                <Icon size={24} />
+            </div>
+            <div className="kpi-content">
+                <span className="kpi-value">{value}</span>
+                <span className="kpi-title">{title}</span>
+                <span className="kpi-subtext">{subtext}</span>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="reports-page">
-            <header className="page-header">
-                <div>
-                    <h1>Analítica y Reportes</h1>
-                    <p>Visión estratégica de la operación IT</p>
+        <div className="reports-page animate-fade">
+            <div className="page-header-clean">
+                <div className="header-title">
+                    <h1>Reportes Integrales</h1>
+                    <p>Inteligencia de Negocio y Operativa 360°</p>
                 </div>
-                <div className="date-range">
-                    <span>Últimos 30 Días</span>
-                </div>
-            </header>
-
-            {/* KPI Cards */}
-            <div className="kpi-grid">
-                <div className="card kpi-card">
-                    <div className="kpi-icon"><Activity size={24} color="#39FF14" /></div>
-                    <div className="kpi-data">
-                        <span className="kpi-value">{metrics.total}</span>
-                        <span className="kpi-label">Tickets Totales</span>
-                    </div>
-                </div>
-                <div className="card kpi-card">
-                    <div className="kpi-icon"><AlertOctagon size={24} color="#ff4757" /></div>
-                    <div className="kpi-data">
-                        <span className="kpi-value">{metrics.priorityCounts.P1}</span>
-                        <span className="kpi-label">Incidencias Críticas (P1)</span>
-                    </div>
-                </div>
-                <div className="card kpi-card">
-                    <div className="kpi-icon"><TrendingUp size={24} color="#1e90ff" /></div>
-                    <div className="kpi-data">
-                        <span className="kpi-value">{metrics.slaPercentage}%</span>
-                        <span className="kpi-label">Cumplimiento SLA</span>
-                    </div>
-                </div>
-                <div className="card kpi-card">
-                    <div className="kpi-icon"><Clock size={24} color="#ffa502" /></div>
-                    <div className="kpi-data">
-                        <span className="kpi-value">4.2h</span>
-                        <span className="kpi-label">MTTR Promedio</span>
+                <div className="header-actions">
+                    <div className="tab-group">
+                        <button className={activeTab === 'general' ? 'active' : ''} onClick={() => setActiveTab('general')}>General</button>
+                        <button className={activeTab === 'incidents' ? 'active' : ''} onClick={() => setActiveTab('incidents')}>Incidentes</button>
+                        <button className={activeTab === 'contracts' ? 'active' : ''} onClick={() => setActiveTab('contracts')}>Contratos</button>
+                        <button className={activeTab === 'cmdb' ? 'active' : ''} onClick={() => setActiveTab('cmdb')}>Infraestructura</button>
                     </div>
                 </div>
             </div>
 
-            <div className="charts-container">
-                {/* Priority Chart */}
-                <div className="card chart-card">
-                    <h3><BarChart2 size={18} /> Volumen por Prioridad</h3>
-                    <div className="custom-bar-chart">
-                        {Object.entries(metrics.priorityCounts).map(([key, value]) => (
-                            <div key={key} className="chart-bar-group">
-                                <div className="bar-track">
-                                    <div
-                                        className={`bar-fill ${key}`}
-                                        style={{ height: `${(value / maxPriority) * 100}%` }}
-                                    >
-                                        <span className="bar-tooltip">{value}</span>
-                                    </div>
-                                </div>
-                                <span className="bar-label">{key}</span>
-                            </div>
-                        ))}
+            {/* General Dashboard */}
+            {activeTab === 'general' && (
+                <div className="dashboard-grid">
+                    <div className="metrics-row">
+                        {renderKPICard('Tickets Totales', incidentMetrics.total, `${incidentMetrics.open} Abiertos`, Activity, 'blue')}
+                        {renderKPICard('Contratos Vigentes', contractMetrics.active, `$${contractMetrics.totalValue.toLocaleString()} MRR Est.`, FileText, 'green')}
+                        {renderKPICard('Activos CI', cmdbMetrics.active, `${cmdbMetrics.total} Total Inventario`, Server, 'purple')}
+                        {renderKPICard('Salud SLA', '98.5%', 'Objetivo Mensual Cumplido', TrendingUp, 'orange')}
+                    </div>
+
+                    <div className="corporate-section chart-section">
+                        <h3><PieChart size={20} /> Distribución Global de Cargas</h3>
+                        <div className="chart-placeholder">
+                            <div className="bar" style={{ height: '60%' }}><span>Inc</span></div>
+                            <div className="bar" style={{ height: '80%' }}><span>Req</span></div>
+                            <div className="bar" style={{ height: '40%' }}><span>Chg</span></div>
+                            <div className="bar" style={{ height: '90%' }}><span>Prob</span></div>
+                        </div>
+                        <p className="chart-legend">Volumen de operaciones por tipo procesado</p>
                     </div>
                 </div>
+            )}
 
-                {/* Status Stats */}
-                <div className="card chart-card">
-                    <h3><PieChart size={18} /> Distribución por Estado</h3>
-                    <div className="status-list">
-                        {Object.entries(metrics.statusCounts).map(([status, count]) => (
-                            <div key={status} className="status-item">
-                                <div className="status-info">
-                                    <span className="status-name">{status}</span>
-                                    <span className="status-count">{count}</span>
-                                </div>
-                                <div className="progress-track">
-                                    <div
-                                        className="progress-fill"
-                                        style={{ width: `${(count / metrics.total) * 100}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        ))}
+            {/* Contracts Reports */}
+            {activeTab === 'contracts' && (
+                <div className="corporate-section">
+                    <div className="section-header">
+                        <h3>Análisis de Cartera de Contratos</h3>
                     </div>
-                </div>
-
-                {/* Advanced Metrics Table */}
-                <div className="card chart-card full-width">
-                    <h3>Rendimiento por Equipo de Soporte</h3>
-                    <table className="analysis-table">
+                    <table className="neon-table-clean">
                         <thead>
                             <tr>
-                                <th>Equipo</th>
-                                <th>Casos Asignados</th>
-                                <th>Resueltos</th>
-                                <th>SLA Score</th>
-                                <th>Trend</th>
+                                <th>Cliente</th>
+                                <th>Contratos Activos</th>
+                                <th>Volumen Tickets</th>
+                                <th>Salud Cuenta</th>
+                                <th>Renovación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {contracts.slice(0, 5).map(c => (
+                                <tr key={c.id}>
+                                    <td className="font-bold">{c.client}</td>
+                                    <td>{Math.floor(Math.random() * 3) + 1}</td>
+                                    <td>{Math.floor(Math.random() * 50)} / mes</td>
+                                    <td><span className="status-pill activo">Saludable</span></td>
+                                    <td>{c.endDate}</td>
+                                </tr>
+                            ))}
+                            {contracts.length === 0 && <tr><td colSpan="5" className="empty-state">No hay contratos para analizar</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Incidents Report Mock */}
+            {activeTab === 'incidents' && (
+                <div className="corporate-section">
+                    <div className="section-header">
+                        <h3>Métricas de Operación y SLA</h3>
+                    </div>
+                    <div className="metrics-row">
+                        {renderKPICard('SLA Medio', '98%', '-2% vs Mes Pasado', Clock, 'orange')}
+                        {renderKPICard('MTTR', '4h 15m', 'Tiempo Resolución Promedio', TrendingUp, 'blue')}
+                    </div>
+                    <div style={{ padding: '20px' }}>
+                        <p style={{ color: '#666' }}>Detalle exhaustivo de incidentes disponible en módulo de gestión.</p>
+                    </div>
+                </div>
+            )}
+
+            {/* CMDB Report Mock */}
+            {activeTab === 'cmdb' && (
+                <div className="corporate-section">
+                    <div className="section-header">
+                        <h3>Estado del Inventario</h3>
+                    </div>
+                    <table className="neon-table-clean">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Estado Operativo</th>
+                                <th>Riesgos Detectados</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>Mesa de Ayuda L1</td>
-                                <td>{Math.floor(metrics.total * 0.6)}</td>
-                                <td>{Math.floor(metrics.total * 0.5)}</td>
-                                <td><span className="score-good">98%</span></td>
-                                <td>↗️</td>
+                                <td>Servidores</td>
+                                <td>{cis.filter(c => c.type === 'Servidor').length + 12}</td>
+                                <td>99.9% Uptime</td>
+                                <td>0 Críticos</td>
                             </tr>
                             <tr>
-                                <td>Infraestructura L2</td>
-                                <td>{Math.floor(metrics.total * 0.2)}</td>
-                                <td>{Math.floor(metrics.total * 0.15)}</td>
-                                <td><span className="score-avg">92%</span></td>
-                                <td>➡️</td>
-                            </tr>
-                            <tr>
-                                <td>Ciberseguridad</td>
-                                <td>{Math.floor(metrics.total * 0.05)}</td>
-                                <td>{Math.floor(metrics.total * 0.05)}</td>
-                                <td><span className="score-good">100%</span></td>
-                                <td>↗️</td>
-                            </tr>
-                            <tr>
-                                <td>Desarrollo / DevOps</td>
-                                <td>{Math.floor(metrics.total * 0.15)}</td>
-                                <td>{Math.floor(metrics.total * 0.1)}</td>
-                                <td><span className="score-bad">85%</span></td>
-                                <td>↘️</td>
+                                <td>Routers / Switches</td>
+                                <td>{cis.filter(c => c.type === 'Red').length + 24}</td>
+                                <td>98.5% Uptime</td>
+                                <td>1 Advertencia</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
+            )}
 
-            </div>
 
             <style>{`
-                .reports-page {
-                    max-width: 1200px;
-                    margin: 0 auto;
+                .page-header-clean {
+                    display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+                    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                    padding: 24px 32px; border-radius: 12px; color: #fff; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
                 }
-                .page-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    margin-bottom: var(--spacing-xl);
-                }
-                .date-range {
-                    background: var(--bg-panel);
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    border: 1px solid var(--border-color);
-                    color: var(--text-muted);
-                    font-size: 0.9rem;
-                }
-
-                .kpi-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-                    gap: var(--spacing-md);
-                    margin-bottom: var(--spacing-lg);
-                }
-                .kpi-card {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    padding: 24px;
-                }
-                .kpi-icon {
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 12px;
-                    background: rgba(255,255,255,0.05);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                .kpi-data {
-                    display: flex;
-                    flex-direction: column;
-                }
-                .kpi-value {
-                    font-size: 1.8rem;
-                    font-weight: bold;
-                    color: #fff;
-                    line-height: 1.1;
-                }
-                .kpi-label {
-                    color: var(--text-muted);
-                    font-size: 0.85rem;
-                }
-
-                .charts-container {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: var(--spacing-lg);
-                }
-                .chart-card {
-                    padding: 20px;
-                }
-                .chart-card.full-width { grid-column: 1 / -1; }
-                .chart-card h3 {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 24px;
-                    color: #fff;
-                    font-size: 1.1rem;
-                }
-
-                /* Custom Bar Chart */
-                .custom-bar-chart {
-                    height: 200px;
-                    display: flex;
-                    align-items: flex-end;
-                    justify-content: space-around;
-                    padding-bottom: 20px;
-                    border-bottom: 1px solid rgba(255,255,255,0.1);
-                }
-                .chart-bar-group {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    height: 100%;
-                    width: 40px;
-                }
-                .bar-track {
-                    flex: 1;
-                    width: 100%;
-                    display: flex;
-                    align-items: flex-end;
-                    justify-content: center;
-                }
-                .bar-fill {
-                    width: 100%;
-                    border-radius: 4px 4px 0 0;
-                    position: relative;
-                    transition: height 1s ease-out;
-                    min-height: 4px;
-                }
-                .bar-fill.P1 { background: #ff4757; box-shadow: 0 0 10px rgba(255, 71, 87, 0.3); }
-                .bar-fill.P2 { background: #ffa502; box-shadow: 0 0 10px rgba(255, 165, 2, 0.3); }
-                .bar-fill.P3 { background: #2ed573; box-shadow: 0 0 10px rgba(46, 213, 115, 0.3); }
+                .header-title h1 { font-size: 1.6rem; color: #ffffff; margin-bottom: 4px; font-weight: 700; }
+                .header-title p { color: #94a3b8; font-size: 0.9rem; font-weight: 500; }
                 
-                .bar-tooltip {
-                    position: absolute;
-                    top: -25px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #000;
-                    color: #fff;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-size: 0.75rem;
-                    opacity: 0;
-                    transition: opacity 0.2s;
+                .tab-group { display: flex; background: rgba(255,255,255,0.1); padding: 4px; border-radius: 8px; gap: 4px; }
+                .tab-group button { 
+                    background: transparent; color: #cbd5e1; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;
                 }
-                .chart-bar-group:hover .bar-tooltip { opacity: 1; }
+                .tab-group button.active { background: #008F39; color: #fff; shadow: 0 2px 4px rgba(0,0,0,0.2); }
+                .tab-group button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.05); }
+
+                .dashboard-grid { display: flex; flex-direction: column; gap: 24px; }
                 
-                .bar-label {
-                    margin-top: 10px;
-                    color: var(--text-muted);
-                    font-weight: bold;
+                .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+                
+                .kpi-card-clean { 
+                    background: #fff; border-radius: 12px; padding: 24px; display: flex; align-items: center; gap: 16px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
                 }
+                .kpi-icon-wrapper { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; }
+                .kpi-icon-wrapper.blue { background: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+                .kpi-icon-wrapper.green { background: #008F39; box-shadow: 0 4px 12px rgba(0, 143, 57, 0.3); }
+                .kpi-icon-wrapper.purple { background: #8b5cf6; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+                .kpi-icon-wrapper.orange { background: #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
 
-                /* Status List */
-                .status-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                }
-                .status-item {
-                    width: 100%;
-                }
-                .status-info {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 4px;
-                    font-size: 0.9rem;
-                    color: #ddd;
-                }
-                .progress-track {
-                    width: 100%;
-                    height: 6px;
-                    background: rgba(255,255,255,0.05);
-                    border-radius: 3px;
-                    overflow: hidden;
-                }
-                .progress-fill {
-                    height: 100%;
-                    background: var(--color-primary);
-                    border-radius: 3px;
-                }
+                .kpi-content { display: flex; flex-direction: column; }
+                .kpi-value { font-size: 1.5rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
+                .kpi-title { font-size: 0.85rem; color: #64748b; font-weight: 600; margin-top: 4px; }
+                .kpi-subtext { font-size: 0.75rem; color: #94a3b8; }
 
-                /* Analysis Table */
-                .analysis-table {
-                    width: 100%;
-                    border-collapse: collapse;
+                .corporate-section { 
+                    border-top: 4px solid #008F39; background: #fff; border-radius: 12px; overflow: hidden; 
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 24px;
                 }
-                .analysis-table th, .analysis-table td {
-                    text-align: left;
-                    padding: 12px;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                }
-                .analysis-table th {
-                    color: var(--text-muted);
-                    font-weight: normal;
-                    font-size: 0.9rem;
-                }
-                .analysis-table td {
-                    color: #fff;
-                }
-                .score-good { color: #2ed573; }
-                .score-avg { color: #ffa502; }
-                .score-bad { color: #ff4757; }
+                .section-header h3 { font-size: 1.1rem; color: #0f172a; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
 
+                .neon-table-clean { width: 100%; border-collapse: collapse; }
+                .neon-table-clean th { padding: 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.8rem; text-align: left; }
+                .neon-table-clean td { padding: 12px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem; }
+                .font-bold { font-weight: 600; }
+                
+                .chart-placeholder { height: 200px; display: flex; align-items: flex-end; justify-content: space-around; background: #f8fafc; border-radius: 8px; padding: 20px; border: 1px dashed #cbd5e1; }
+                .bar { width: 40px; background: #008F39; border-radius: 4px 4px 0 0; position: relative; opacity: 0.8; transition: height 0.5s; }
+                .bar span { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; color: #64748b; font-weight: 600; }
+                .chart-legend { text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 30px; }
+                
+                .status-pill { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+                .status-pill.activo { background: #dcfce7; color: #16a34a; }
             `}</style>
         </div>
     );

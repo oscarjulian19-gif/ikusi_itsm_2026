@@ -12,11 +12,23 @@ class GeminiService:
             print("WARNING: No Google API Key found. AI Service will be mocked.")
             self.model = None
 
+    async def generate_response(self, prompt: str):
+        if not self.model:
+            return "Simulated AI Response: API Key Missing."
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"AI Error: {str(e)}"
+
     async def analyze_ticket(self, title: str, description: str, context_docs: list[str] = []):
         if not self.model:
-            return "Simulated AI Analysis (No API Key): Please configure GOOGLE_API_KEY."
-
-        # Construct specific prompt with RAG context
+             return "Simulated AI Analysis (No API Key): Please configure GOOGLE_API_KEY."
+             
+        # ... existing logic ...
+        # For P7M6 we will use generate_response directly from the router to have full control.
+        # But keeping this for the legacy /analyze_ticket endpoint if used.
+        
         context_block = "\n".join(context_docs)
         prompt = f"""
         Act as an Expert IT Service Desk AI (IKUSI Flash 2.0).

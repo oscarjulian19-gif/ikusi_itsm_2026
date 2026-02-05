@@ -8,18 +8,18 @@ class Settings(BaseSettings):
     
     # Database
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "password"
+    POSTGRES_PASSWORD: str = "Jero2009$"
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "ikusi_service_db"
     
     # AI / LLM
     GOOGLE_API_KEY: str = "" # Flash 2.0 (Gemini) Key
-    MODEL_NAME: str = "gemini-1.5-pro-latest"
+    MODEL_NAME: str = "gemini-flash-latest"
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"postgresql+pg8000://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     class Config:
         env_file = ".env"

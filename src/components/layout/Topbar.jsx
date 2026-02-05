@@ -1,34 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, Search, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Topbar = () => {
-    return (
-        <header className="topbar">
-            <div className="topbar-search">
-                <Search size={18} className="search-icon" />
-                <input type="text" placeholder="Buscar casos, CIs, soluciones..." className="search-input" />
-            </div>
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
 
-            <div className="topbar-actions">
-                <button className="action-btn">
-                    <Bell size={20} />
-                    <span className="badge">3</span>
-                </button>
-                <div className="user-profile">
-                    <div className="avatar">AO</div>
-                    <span className="username">Admin Operator</span>
-                </div>
-            </div>
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' && query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query)}`);
+      setQuery('');
+    }
+  };
 
-            <style>{`
+  return (
+    <header className="topbar">
+      <div className="topbar-search">
+        <Search size={18} className="search-icon" />
+        <input
+          type="text"
+          placeholder="Buscar PEP, Folio, Activo, Ticket..."
+          className="search-input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleSearch}
+        />
+      </div>
+
+      <div className="topbar-actions">
+        <button className="action-btn">
+          <Bell size={20} />
+          <span className="badge">3</span>
+        </button>
+        <div className="user-profile">
+          <div className="avatar">AO</div>
+          <span className="username">Admin Operator</span>
+        </div>
+      </div>
+
+      <style>{`
         .topbar {
           height: var(--header-height);
-          background-color: var(--bg-panel);
-          border-bottom: 1px solid var(--border-color);
+          background: #ffffff;
+          border-bottom: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 var(--spacing-lg);
+          padding: 0 var(--spacing-xl);
+          z-index: 40;
         }
 
         .topbar-search {
@@ -41,23 +60,27 @@ const Topbar = () => {
           left: 12px;
           top: 50%;
           transform: translateY(-50%);
-          color: var(--text-muted);
+          color: var(--text-dim);
+          width: 14px;
+          height: 14px;
         }
 
         .search-input {
           width: 100%;
-          background: var(--bg-dark);
-          border: 1px solid var(--border-color);
-          border-radius: 20px;
-          padding: 8px 16px 8px 40px;
-          color: #fff;
+          background: #f1f5f9;
+          border: 1px solid transparent;
+          border-radius: var(--radius-md);
+          padding: 8px 16px 8px 36px;
+          color: var(--text-main);
           outline: none;
-          transition: border-color 0.3s;
+          font-size: 0.85rem;
+          transition: all 0.2s;
         }
 
         .search-input:focus {
           border-color: var(--color-primary);
-          box-shadow: 0 0 5px rgba(57, 255, 20, 0.2);
+          background: #fff;
+          box-shadow: 0 0 0 2px var(--color-primary-glow);
         }
 
         .topbar-actions {
@@ -72,55 +95,77 @@ const Topbar = () => {
           color: var(--text-muted);
           cursor: pointer;
           position: relative;
-        }
-
-        .action-btn:hover {
-          color: #fff;
-        }
-
-        .badge {
-          position: absolute;
-          top: -5px;
-          right: -5px;
-          background: var(--color-primary);
-          color: #000;
-          font-size: 10px;
-          width: 16px;
-          height: 16px;
+          width: 40px;
+          height: 40px;
           display: flex;
           align-items: center;
           justify-content: center;
           border-radius: 50%;
-          font-weight: bold;
+          transition: 0.2s;
+        }
+
+        .action-btn:hover {
+          background: #f1f5f9;
+          color: var(--text-main);
+        }
+
+        .badge {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: var(--color-danger);
+          color: #fff;
+          font-size: 8px;
+          width: 14px;
+          height: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-weight: 700;
+          border: 2px solid #fff;
         }
 
         .user-profile {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           cursor: pointer;
+          padding: 4px;
+          border-radius: var(--radius-full);
+          transition: 0.2s;
+        }
+
+        .user-profile:hover {
+          background: #f1f5f9;
         }
 
         .avatar {
           width: 32px;
           height: 32px;
-          background: #333;
+          background: #2563eb;
+          color: #fff;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 12px;
-          font-weight: bold;
-          border: 1px solid var(--color-primary);
+          font-weight: 700;
         }
 
         .username {
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 500;
+          color: var(--text-main);
+          display: none; /* Hide text to match screenshot style */
+        }
+        
+        @media (min-width: 1024px) {
+          .username { display: block; }
         }
       `}</style>
-        </header>
-    );
+    </header>
+  );
 };
 
 export default Topbar;

@@ -1,0 +1,2 @@
+Error inspeccionando DB: (pg8000.dbapi.ProgrammingError) {'S': 'FATAL', 'V': 'FATAL', 'C': '28P01', 'M': 'la autentificaci�n password fall� para el usuario �postgres�', 'F': 'auth.c', 'L': '320', 'R': 'auth_failed'}
+(Background on this error at: https://sqlalche.me/e/20/f405)

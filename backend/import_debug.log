@@ -1,0 +1,293 @@
+2026-02-01 01:11:53,706 - INFO - Starting process_contracts_file for Contratos (26Ene26).xlsx
+2026-02-01 01:11:55,444 - INFO - Loaded file. Rows: 124. Cols: ['Número de Contrato', 'Cliente', 'Descripción', 'Folio', 'Nombre proyecto', 'PEP', 'Estado', 'Inicio', 'Fin', 'SDM']
+2026-02-01 01:11:55,445 - INFO - Renamed columns: ['id', 'client', 'description', 'folio', 'project_name', 'pep', 'status', 'start_date', 'end_date', 'sdm']
+2026-02-01 01:16:33,609 - INFO - --- START IMPORT: Contratos (26Ene26).xlsx ---
+2026-02-01 01:16:35,001 - INFO - Fila leída: 124 filas. Columnas: ['Número de Contrato', 'Cliente', 'Descripción', 'Folio', 'Nombre proyecto', 'PEP', 'Estado', 'Inicio', 'Fin', 'SDM']
+2026-02-01 01:16:35,006 - INFO - Columnas mapeadas: ['id', 'client', 'description', 'folio', 'project_name', 'pep', 'status', 'start_date', 'end_date', 'sdm']
+2026-02-01 01:16:35,053 - INFO - ID inicial auto-gen: CNTR2600001
+2026-02-01 01:16:35,094 - INFO - Total contratos listos para insertar: 124
+2026-02-01 01:16:35,139 - ERROR - ERROR CRÍTICO EN IMPORTACIÓN: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+[SQL: INSERT INTO contracts (id, client, pep, folio, description, project_name, service_type, status, country, sdm, sales_rep, start_date, end_date) VALUES (%s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::TIMESTAMP WITHOUT TIME ZONE, %s::TIMESTAMP WITHOUT TIME ZONE)]
+[parameters: [('CNTR0013427', 'LG CNS COLOMBIA', '57.1002.20.PR.183-1', '201910-17347', 'DC, Seguridad y Balanceadores LG', 'DC, Seguridad y Balanceadores LG', 'Soporte fábrica', 'Active', 'Colombia', 'Lina Esperanza Lozano Devia', '', datetime.datetime(2021, 4, 1, 0, 0), datetime.datetime(2026, 3, 31, 0, 0)), ('CNTR0013453', 'SODIMAC', '57.1002.21.PR.023-1', '202011-20271', 'Suministro e instalación B200/VMWare', 'Suministro e instalación B200/VMWare', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 3, 14, 0, 0), datetime.datetime(2026, 3, 13, 0, 0)), ('CNTR0013919', 'SIEMENS S.A.', '57.1002.21.RE.091-1', '202103-20760', 'Enel La Loma', 'Enel La Loma', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 8, 30, 0, 0), datetime.datetime(2026, 12, 16, 0, 0)), ('CNTR0013932', 'SODIMAC', '57.1002.21.PR.135-1', '202106-22087', 'Actualización Appliance ISE', 'Actualización Appliance ISE', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 10, 31, 0, 0), datetime.datetime(2026, 10, 30, 0, 0)), ('CNTR0014023', 'IGAC', '57.1001.21.PR.200-1', '202003-18243', 'Renovación LAN / DC ACI', 'Renovación LAN / DC ACI', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 15, 0, 0), datetime.datetime(2026, 5, 27, 0, 0)), ('CNTR0014051', 'UNIDAD DE PLANEACION MINERO ENERGÉTICA - UPME', '57.1001.21.PR.126-1', '202106-23698', 'Solución de Switching', 'Solución de Switching', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 29, 0, 0), datetime.datetime(2027, 3, 26, 0, 0)), ('CNTR0014132', 'SIEMENS S.A.', '57.1002.21.RE.136-1', '202106-23661', 'Siemens - Enel Proyecto: WINDPESHI', 'Siemens - Enel Proyecto: WINDPESHI', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 12, 31, 0, 0), datetime.datetime(2026, 12, 30, 0, 0)), ('CNTR0014228', 'BANCO BBVA', '57.1002.22.PR.031-1', '202201-25651', '5 año. Servicio Ikusi y 5 años SNTC Cisco Contract Number ', 'Renovación Ironport BBVA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2022, 5, 10, 0, 0), datetime.datetime(2027, 3, 12, 0, 0))  ... displaying 10 of 124 total bound parameter sets ...  ('CNTR0016759', 'SCOTIABANK GESTION DE SERVICIOS GLOBALES', '5C.1002.25SE.166-1', '202504-41176', 'EQUIPOS F5 SCOT COLPATRIA', 'EQUIPOS F5 SCOT COLPATRIA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2026, 1, 15, 0, 0), datetime.datetime(2029, 1, 14, 0, 0)), ('CNTR0016760', 'MINISTERIO DE LAS CULTURAS, LAS ARTES Y LOS SABERES', '5C.1001.25SE.171-2', '202506-41762', 'LAN-WLAN para sedes del Ministerio - Cisco', 'LAN-WLAN para sedes del Ministerio - Cisco', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2025, 12, 12, 0, 0), datetime.datetime(2030, 12, 11, 0, 0))]]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 256, in execute
+    self._context = self._c.execute_unnamed(
+                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        statement, vals=vals, oids=self._input_oids, stream=stream
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\core.py", line 723, in execute_unnamed
+    self.handle_messages(context)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\core.py", line 844, in handle_messages
+    raise context.error
+pg8000.exceptions.DatabaseError: {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\default.py", line 949, in do_executemany
+    cursor.executemany(statement, parameters)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 308, in executemany
+    self.execute(operation, parameters)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 283, in execute
+    raise cls(msg)
+pg8000.dbapi.ProgrammingError: {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\.gemini\antigravity\playground\axial-perseverance\backend\app\routers\imports.py", line 119, in process_contracts_file
+    db.bulk_insert_mappings(DBContract, chunk)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4647, in bulk_insert_mappings
+    self._bulk_save_mappings(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        mapper,
+        ^^^^^^^
+    ...<5 lines>...
+        render_nulls=render_nulls,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4741, in _bulk_save_mappings
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4730, in _bulk_save_mappings
+    bulk_persistence._bulk_insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        mapper,
+        ^^^^^^^
+    ...<4 lines>...
+        render_nulls=render_nulls,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\bulk_persistence.py", line 222, in _bulk_insert
+    result = persistence._emit_insert_statements(
+        base_mapper,
+    ...<6 lines>...
+        execution_options=execution_options,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1048, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\default.py", line 949, in do_executemany
+    cursor.executemany(statement, parameters)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 308, in executemany
+    self.execute(operation, parameters)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 283, in execute
+    raise cls(msg)
+sqlalchemy.exc.ProgrammingError: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+[SQL: INSERT INTO contracts (id, client, pep, folio, description, project_name, service_type, status, country, sdm, sales_rep, start_date, end_date) VALUES (%s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::TIMESTAMP WITHOUT TIME ZONE, %s::TIMESTAMP WITHOUT TIME ZONE)]
+[parameters: [('CNTR0013427', 'LG CNS COLOMBIA', '57.1002.20.PR.183-1', '201910-17347', 'DC, Seguridad y Balanceadores LG', 'DC, Seguridad y Balanceadores LG', 'Soporte fábrica', 'Active', 'Colombia', 'Lina Esperanza Lozano Devia', '', datetime.datetime(2021, 4, 1, 0, 0), datetime.datetime(2026, 3, 31, 0, 0)), ('CNTR0013453', 'SODIMAC', '57.1002.21.PR.023-1', '202011-20271', 'Suministro e instalación B200/VMWare', 'Suministro e instalación B200/VMWare', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 3, 14, 0, 0), datetime.datetime(2026, 3, 13, 0, 0)), ('CNTR0013919', 'SIEMENS S.A.', '57.1002.21.RE.091-1', '202103-20760', 'Enel La Loma', 'Enel La Loma', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 8, 30, 0, 0), datetime.datetime(2026, 12, 16, 0, 0)), ('CNTR0013932', 'SODIMAC', '57.1002.21.PR.135-1', '202106-22087', 'Actualización Appliance ISE', 'Actualización Appliance ISE', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 10, 31, 0, 0), datetime.datetime(2026, 10, 30, 0, 0)), ('CNTR0014023', 'IGAC', '57.1001.21.PR.200-1', '202003-18243', 'Renovación LAN / DC ACI', 'Renovación LAN / DC ACI', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 15, 0, 0), datetime.datetime(2026, 5, 27, 0, 0)), ('CNTR0014051', 'UNIDAD DE PLANEACION MINERO ENERGÉTICA - UPME', '57.1001.21.PR.126-1', '202106-23698', 'Solución de Switching', 'Solución de Switching', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 29, 0, 0), datetime.datetime(2027, 3, 26, 0, 0)), ('CNTR0014132', 'SIEMENS S.A.', '57.1002.21.RE.136-1', '202106-23661', 'Siemens - Enel Proyecto: WINDPESHI', 'Siemens - Enel Proyecto: WINDPESHI', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 12, 31, 0, 0), datetime.datetime(2026, 12, 30, 0, 0)), ('CNTR0014228', 'BANCO BBVA', '57.1002.22.PR.031-1', '202201-25651', '5 año. Servicio Ikusi y 5 años SNTC Cisco Contract Number ', 'Renovación Ironport BBVA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2022, 5, 10, 0, 0), datetime.datetime(2027, 3, 12, 0, 0))  ... displaying 10 of 124 total bound parameter sets ...  ('CNTR0016759', 'SCOTIABANK GESTION DE SERVICIOS GLOBALES', '5C.1002.25SE.166-1', '202504-41176', 'EQUIPOS F5 SCOT COLPATRIA', 'EQUIPOS F5 SCOT COLPATRIA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2026, 1, 15, 0, 0), datetime.datetime(2029, 1, 14, 0, 0)), ('CNTR0016760', 'MINISTERIO DE LAS CULTURAS, LAS ARTES Y LOS SABERES', '5C.1001.25SE.171-2', '202506-41762', 'LAN-WLAN para sedes del Ministerio - Cisco', 'LAN-WLAN para sedes del Ministerio - Cisco', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2025, 12, 12, 0, 0), datetime.datetime(2030, 12, 11, 0, 0))]]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-02-01 01:17:39,515 - INFO - --- START IMPORT: Contratos (26Ene26).xlsx ---
+2026-02-01 01:17:39,630 - INFO - Fila leída: 124 filas. Columnas: ['Número de Contrato', 'Cliente', 'Descripción', 'Folio', 'Nombre proyecto', 'PEP', 'Estado', 'Inicio', 'Fin', 'SDM']
+2026-02-01 01:17:39,633 - INFO - Columnas mapeadas: ['id', 'client', 'description', 'folio', 'project_name', 'pep', 'status', 'start_date', 'end_date', 'sdm']
+2026-02-01 01:17:39,640 - INFO - ID inicial auto-gen: CNTR2600001
+2026-02-01 01:17:39,695 - INFO - Total contratos listos para insertar: 124
+2026-02-01 01:17:39,710 - ERROR - ERROR CRÍTICO EN IMPORTACIÓN: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+[SQL: INSERT INTO contracts (id, client, pep, folio, description, project_name, service_type, status, country, sdm, sales_rep, start_date, end_date) VALUES (%s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::TIMESTAMP WITHOUT TIME ZONE, %s::TIMESTAMP WITHOUT TIME ZONE)]
+[parameters: [('CNTR0013427', 'LG CNS COLOMBIA', '57.1002.20.PR.183-1', '201910-17347', 'DC, Seguridad y Balanceadores LG', 'DC, Seguridad y Balanceadores LG', 'Soporte fábrica', 'Active', 'Colombia', 'Lina Esperanza Lozano Devia', '', datetime.datetime(2021, 4, 1, 0, 0), datetime.datetime(2026, 3, 31, 0, 0)), ('CNTR0013453', 'SODIMAC', '57.1002.21.PR.023-1', '202011-20271', 'Suministro e instalación B200/VMWare', 'Suministro e instalación B200/VMWare', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 3, 14, 0, 0), datetime.datetime(2026, 3, 13, 0, 0)), ('CNTR0013919', 'SIEMENS S.A.', '57.1002.21.RE.091-1', '202103-20760', 'Enel La Loma', 'Enel La Loma', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 8, 30, 0, 0), datetime.datetime(2026, 12, 16, 0, 0)), ('CNTR0013932', 'SODIMAC', '57.1002.21.PR.135-1', '202106-22087', 'Actualización Appliance ISE', 'Actualización Appliance ISE', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 10, 31, 0, 0), datetime.datetime(2026, 10, 30, 0, 0)), ('CNTR0014023', 'IGAC', '57.1001.21.PR.200-1', '202003-18243', 'Renovación LAN / DC ACI', 'Renovación LAN / DC ACI', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 15, 0, 0), datetime.datetime(2026, 5, 27, 0, 0)), ('CNTR0014051', 'UNIDAD DE PLANEACION MINERO ENERGÉTICA - UPME', '57.1001.21.PR.126-1', '202106-23698', 'Solución de Switching', 'Solución de Switching', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 29, 0, 0), datetime.datetime(2027, 3, 26, 0, 0)), ('CNTR0014132', 'SIEMENS S.A.', '57.1002.21.RE.136-1', '202106-23661', 'Siemens - Enel Proyecto: WINDPESHI', 'Siemens - Enel Proyecto: WINDPESHI', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 12, 31, 0, 0), datetime.datetime(2026, 12, 30, 0, 0)), ('CNTR0014228', 'BANCO BBVA', '57.1002.22.PR.031-1', '202201-25651', '5 año. Servicio Ikusi y 5 años SNTC Cisco Contract Number ', 'Renovación Ironport BBVA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2022, 5, 10, 0, 0), datetime.datetime(2027, 3, 12, 0, 0))  ... displaying 10 of 124 total bound parameter sets ...  ('CNTR0016759', 'SCOTIABANK GESTION DE SERVICIOS GLOBALES', '5C.1002.25SE.166-1', '202504-41176', 'EQUIPOS F5 SCOT COLPATRIA', 'EQUIPOS F5 SCOT COLPATRIA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2026, 1, 15, 0, 0), datetime.datetime(2029, 1, 14, 0, 0)), ('CNTR0016760', 'MINISTERIO DE LAS CULTURAS, LAS ARTES Y LOS SABERES', '5C.1001.25SE.171-2', '202506-41762', 'LAN-WLAN para sedes del Ministerio - Cisco', 'LAN-WLAN para sedes del Ministerio - Cisco', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2025, 12, 12, 0, 0), datetime.datetime(2030, 12, 11, 0, 0))]]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 256, in execute
+    self._context = self._c.execute_unnamed(
+                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        statement, vals=vals, oids=self._input_oids, stream=stream
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\core.py", line 723, in execute_unnamed
+    self.handle_messages(context)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\core.py", line 844, in handle_messages
+    raise context.error
+pg8000.exceptions.DatabaseError: {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\default.py", line 949, in do_executemany
+    cursor.executemany(statement, parameters)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 308, in executemany
+    self.execute(operation, parameters)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 283, in execute
+    raise cls(msg)
+pg8000.dbapi.ProgrammingError: {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\oscar.gomez\.gemini\antigravity\playground\axial-perseverance\backend\app\routers\imports.py", line 119, in process_contracts_file
+    db.bulk_insert_mappings(DBContract, chunk)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4647, in bulk_insert_mappings
+    self._bulk_save_mappings(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        mapper,
+        ^^^^^^^
+    ...<5 lines>...
+        render_nulls=render_nulls,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4741, in _bulk_save_mappings
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\session.py", line 4730, in _bulk_save_mappings
+    bulk_persistence._bulk_insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        mapper,
+        ^^^^^^^
+    ...<4 lines>...
+        render_nulls=render_nulls,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\bulk_persistence.py", line 222, in _bulk_insert
+    result = persistence._emit_insert_statements(
+        base_mapper,
+    ...<6 lines>...
+        execution_options=execution_options,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1048, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\default.py", line 949, in do_executemany
+    cursor.executemany(statement, parameters)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 308, in executemany
+    self.execute(operation, parameters)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\oscar.gomez\AppData\Local\Programs\Python\Python314\Lib\site-packages\pg8000\legacy.py", line 283, in execute
+    raise cls(msg)
+sqlalchemy.exc.ProgrammingError: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '22001', 'M': 'el valor es demasiado largo para el tipo character varying(18)', 'F': 'varchar.c', 'L': '640', 'R': 'varchar'}
+[SQL: INSERT INTO contracts (id, client, pep, folio, description, project_name, service_type, status, country, sdm, sales_rep, start_date, end_date) VALUES (%s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::TIMESTAMP WITHOUT TIME ZONE, %s::TIMESTAMP WITHOUT TIME ZONE)]
+[parameters: [('CNTR0013427', 'LG CNS COLOMBIA', '57.1002.20.PR.183-1', '201910-17347', 'DC, Seguridad y Balanceadores LG', 'DC, Seguridad y Balanceadores LG', 'Soporte fábrica', 'Active', 'Colombia', 'Lina Esperanza Lozano Devia', '', datetime.datetime(2021, 4, 1, 0, 0), datetime.datetime(2026, 3, 31, 0, 0)), ('CNTR0013453', 'SODIMAC', '57.1002.21.PR.023-1', '202011-20271', 'Suministro e instalación B200/VMWare', 'Suministro e instalación B200/VMWare', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 3, 14, 0, 0), datetime.datetime(2026, 3, 13, 0, 0)), ('CNTR0013919', 'SIEMENS S.A.', '57.1002.21.RE.091-1', '202103-20760', 'Enel La Loma', 'Enel La Loma', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 8, 30, 0, 0), datetime.datetime(2026, 12, 16, 0, 0)), ('CNTR0013932', 'SODIMAC', '57.1002.21.PR.135-1', '202106-22087', 'Actualización Appliance ISE', 'Actualización Appliance ISE', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 10, 31, 0, 0), datetime.datetime(2026, 10, 30, 0, 0)), ('CNTR0014023', 'IGAC', '57.1001.21.PR.200-1', '202003-18243', 'Renovación LAN / DC ACI', 'Renovación LAN / DC ACI', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 15, 0, 0), datetime.datetime(2026, 5, 27, 0, 0)), ('CNTR0014051', 'UNIDAD DE PLANEACION MINERO ENERGÉTICA - UPME', '57.1001.21.PR.126-1', '202106-23698', 'Solución de Switching', 'Solución de Switching', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2022, 3, 29, 0, 0), datetime.datetime(2027, 3, 26, 0, 0)), ('CNTR0014132', 'SIEMENS S.A.', '57.1002.21.RE.136-1', '202106-23661', 'Siemens - Enel Proyecto: WINDPESHI', 'Siemens - Enel Proyecto: WINDPESHI', 'Soporte fábrica', 'Active', 'Colombia', 'Julian Valencia', '', datetime.datetime(2021, 12, 31, 0, 0), datetime.datetime(2026, 12, 30, 0, 0)), ('CNTR0014228', 'BANCO BBVA', '57.1002.22.PR.031-1', '202201-25651', '5 año. Servicio Ikusi y 5 años SNTC Cisco Contract Number ', 'Renovación Ironport BBVA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2022, 5, 10, 0, 0), datetime.datetime(2027, 3, 12, 0, 0))  ... displaying 10 of 124 total bound parameter sets ...  ('CNTR0016759', 'SCOTIABANK GESTION DE SERVICIOS GLOBALES', '5C.1002.25SE.166-1', '202504-41176', 'EQUIPOS F5 SCOT COLPATRIA', 'EQUIPOS F5 SCOT COLPATRIA', 'Soporte fábrica', 'Active', 'Colombia', 'Dago Armando Leon Barahona', '', datetime.datetime(2026, 1, 15, 0, 0), datetime.datetime(2029, 1, 14, 0, 0)), ('CNTR0016760', 'MINISTERIO DE LAS CULTURAS, LAS ARTES Y LOS SABERES', '5C.1001.25SE.171-2', '202506-41762', 'LAN-WLAN para sedes del Ministerio - Cisco', 'LAN-WLAN para sedes del Ministerio - Cisco', 'Soporte fábrica', 'Active', 'Colombia', 'Paola Milena Ortiz Rico', '', datetime.datetime(2025, 12, 12, 0, 0), datetime.datetime(2030, 12, 11, 0, 0))]]
+(Background on this error at: https://sqlalche.me/e/20/f405)

@@ -6,16 +6,32 @@ from app.services.ai_service import GeminiService
 from pydantic import BaseModel
 
 # Initialize Tables (For dev simplicity; in prod use Alembic)
-# Base.metadata.create_all(bind=engine) 
+print("Starting table creation...")
+try:
+    Base.metadata.create_all(bind=engine) 
+    print("Tables created!")
+except Exception as e:
+    print(f"Failed to create tables: {e}")
 
-app = FastAPI(title="IKUSI Service API", version="1.0.0")
+from app.routers import contracts, users, incidents, cmdb, imports
 
-class TicketCreate(BaseModel):
-    id: str
-    title: str
-    description: str
-    priority: str
-    status: str
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="IKUSI Service API", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace with ["http://localhost:5173"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(contracts.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(incidents.router, prefix="/api/v1")
+app.include_router(cmdb.router, prefix="/api/v1")
+app.include_router(imports.router, prefix="/api/v1")
 
 # Dependency
 ai_service = GeminiService()
@@ -23,23 +39,6 @@ ai_service = GeminiService()
 @app.get("/")
 def read_root():
     return {"message": "IKUSI Service API is running. Flash 2.0 Ready."}
-
-@app.post("/api/v1/tickets/analyze")
-async def analyze_ticket_endpoint(ticket: TicketCreate):
-    # Hybrid Mode: 
-    # The data lives in the Frontend (Local), so we trust the payload sent to us.
-    # We are not fetching RAG context from Postgres yet (saving that for full prod).
-    
-    # Simple Context Simulation (StateFree)
-    context = [
-        "System Policy: Always check VPN logs for access issues.",
-        "System Policy: Critical P1 incidents require immediate escalation."
-    ]
-    
-    # 3. Call LLM
-    analysis = await ai_service.analyze_ticket(ticket.title, ticket.description, context)
-    
-    return {"analysis": analysis}
 
 if __name__ == "__main__":
     import uvicorn
