@@ -52,10 +52,14 @@ def read_cis(
     skip: int = 0, 
     limit: int = 100,
     search: Optional[str] = None,
+    contractId: Optional[str] = None, # Added param
     db: Session = Depends(get_db)
 ):
     query = db.query(DBConfigurationItem)
     
+    if contractId:
+        query = query.filter(DBConfigurationItem.contract_id == contractId)
+
     if search:
         search_term = f"%{search}%"
         query = query.filter(

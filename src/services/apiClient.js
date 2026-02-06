@@ -112,6 +112,18 @@ export const aiApi = {
         return response.json();
     },
 
+    uploadCatalog: async (formData) => {
+        const response = await fetch(`${API_BASE_URL}/imports/catalog`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Network error or server failed' }));
+            throw new Error(errorData.detail || `Upload failed: ${response.status}`);
+        }
+        return response.json();
+    },
+
     createCI: async (ciData) => {
         return request('/cmdb', {
             method: 'POST',

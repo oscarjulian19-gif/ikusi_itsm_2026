@@ -141,3 +141,44 @@ class User(Base):
     job_title = Column(String) # Ingeniero L1, L2, etc.
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class CatalogService(Base):
+    __tablename__ = "catalog_services"
+
+    id = Column(String, primary_key=True) # E.g. NET-SW. Acts as 'Codigo_Servicio_Sistema'
+    category = Column(String, index=True) # E.g. Connectivity. 'Categoria'
+    name = Column(String) # 'Servicio'
+    
+    # New Fields
+    category_code = Column(String, nullable=True) # 'Codigo_Categoria_Sistema'
+    category_description = Column(String, nullable=True) # 'Descripcion_Categoria'
+    sief_code = Column(String, nullable=True) # 'Codigo_SIEF' (Service Level)
+    service_description = Column(Text, nullable=True) # 'Descripcion_Servicio'
+    
+    icon = Column(String, nullable=True)
+    
+    scenarios = relationship("CatalogScenario", back_populates="service")
+
+class CatalogScenario(Base):
+    __tablename__ = "catalog_scenarios"
+    
+    id = Column(String, primary_key=True) # E.g. INC-SRV-SEC-FW-RULES. 'Codigo_Tipo_Sistema'
+    name = Column(String) # E.g. Rules. 'Descripcion_Tipo'
+    service_id = Column(String, ForeignKey("catalog_services.id"))
+    
+    type = Column(String) # 'incident' or 'request'. 'Tipo'
+    
+    # New Fields
+    sief_code = Column(String, nullable=True) # 'Codigo_SIEF_Tipo'
+    
+    # Incident specific
+    priority = Column(String, nullable=True)
+    
+    # Request specific
+    complexity = Column(String, nullable=True)
+    time = Column(String, nullable=True)
+    
+    # Common
+    keywords = Column(Text, nullable=True)
+    
+    service = relationship("CatalogService", back_populates="scenarios")

@@ -13,7 +13,7 @@ try:
 except Exception as e:
     print(f"Failed to create tables: {e}")
 
-from app.routers import contracts, users, incidents, cmdb, imports
+from app.routers import contracts, users, incidents, cmdb, imports, catalog
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,11 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(contracts.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
-app.include_router(incidents.router, prefix="/api/v1")
-app.include_router(cmdb.router, prefix="/api/v1")
-app.include_router(imports.router, prefix="/api/v1")
+app.include_router(contracts.router, prefix="/api/v1", tags=["contracts"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
+app.include_router(incidents.router, prefix="/api/v1", tags=["incidents"])
+app.include_router(cmdb.router, prefix="/api/v1", tags=["cmdb"])
+app.include_router(imports.router, prefix="/api/v1", tags=["imports"])
+app.include_router(catalog.router, prefix="/api/v1", tags=["catalog"])
 
 # Dependency
 ai_service = GeminiService()

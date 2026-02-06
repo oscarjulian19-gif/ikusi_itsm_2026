@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Download, Upload, FileSpreadsheet, FileJson, Layers, MoreVertical, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, Download, Upload, FileSpreadsheet, FileJson, Layers, MoreVertical, ArrowUp, ArrowDown, ArrowUpDown, Plus } from 'lucide-react';
 import useCatalogStore from '../store/useCatalogStore';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -8,7 +8,11 @@ import 'jspdf-autotable';
 
 const Catalog = () => {
     const navigate = useNavigate();
-    const { services, incidents, requests } = useCatalogStore();
+    const { services, incidents, requests, fetchCatalog } = useCatalogStore();
+
+    React.useEffect(() => {
+        fetchCatalog();
+    }, []);
 
     // Advanced Table State
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -29,24 +33,34 @@ const Catalog = () => {
 
     // Flatten and Enrich Data
     const tableData = useMemo(() => {
-        const enrichedIncidents = incidents.map(item => ({ ...item, type: 'Incidente', typeCode: 'INC' }));
-        const enrichedRequests = requests.map(item => ({ ...item, type: 'Requerimiento', typeCode: 'REQ' }));
+        const enrichedIncidents = incidents.map(item => ({ ...item, typeLabel: 'Incidente', typeCode: 'INC' }));
+        const enrichedRequests = requests.map(item => ({ ...item, typeLabel: 'Requerimiento', typeCode: 'REQ' }));
         const allItems = [...enrichedIncidents, ...enrichedRequests];
+
         return allItems.map(item => {
-            const service = services.find(s => s.id === item.serviceId) || { name: 'Desconocido', category: 'Sin Categoría' };
+            const service = services.find(s => s.id === item.serviceId) || {};
             return {
-                uniqueId: item.id,
-                categoria: service.category,
-                codigo_categoria_sistema: service.category.substring(0, 3).toUpperCase(),
-                descripcion_categoria: service.category,
-                servicio: service.name,
-                codigo_sief: `SIEF-${service.id}`,
-                codigo_servicio_sistema: service.id,
-                descripcion_servicio: service.name,
-                tipo: item.type,
-                descripcion_tipo: item.name,
-                codigo_sief_tipo: `SIEF-${item.id}`,
-                codigo_tipo_sistema: item.id
+                uniqueId: item.id, // For Key
+                // Level 1: Category
+                categoria: service.category || 'Sin Categoría',
+                codigo_categoria_sistema: service.category_code || '-',
+                descripcion_categoria: service.category_description || '-',
+
+                // Level 2: Service
+                servicio: service.name || 'Desconocido',
+                codigo_sief: service.sief_code || '-',
+                codigo_servicio_sistema: service.id || '-',
+                descripcion_servicio: service.service_description || '-',
+
+                // Level 3: Type (Scenario)
+                tipo: item.typeLabel,
+                descripcion_tipo: item.name || '-',
+                codigo_sief_tipo: item.sief_code || '-',
+                codigo_tipo_sistema: item.id || '-',
+
+                // Helpers for Navigation
+                rawType: item.type, // 'incident' | 'request'
+                typeCode: item.typeCode // INC | REQ
             };
         });
     }, [services, incidents, requests]);
@@ -102,7 +116,25 @@ const Catalog = () => {
     };
 
     const handleImport = () => {
-        alert("Funcionalidad de Importación Masiva (Excel/CSV) - Próximamente integrada con backend");
+        document.getElementById('import-input').click();
+    };
+
+    const onFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (window.confirm(`¿Importar archivo "${file.name}"? Esto actualizará el catálogo.`)) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const { importData } = useCatalogStore.getState();
+                await importData(formData);
+                alert("Importación exitosa.");
+            } catch (err) {
+                alert("Error en la importación: " + err.message);
+            }
+        }
+        e.target.value = null; // Reset
     };
 
     const handleRowClick = (item) => {
@@ -144,9 +176,19 @@ const Catalog = () => {
                     <button className="btn-secondary" onClick={handleExportPDF} title="Exportar PDF">
                         <FileJson size={16} />
                     </button>
-                    <button className="btn-primary" onClick={handleImport} style={{ background: '#008F39', border: 'none' }}>
-                        <Upload size={16} /> Importar Masivo
+                    <button className="btn-primary" onClick={() => navigate('/catalog/edit/INC/new')} style={{ background: '#008F39', border: 'none' }}>
+                        <Plus size={16} /> Nuevo Registro
                     </button>
+                    <button className="btn-secondary ml-2" onClick={handleImport} title="Importar">
+                        <Upload size={16} />
+                    </button>
+                    <input
+                        type="file"
+                        id="import-input"
+                        accept=".xlsx, .xls, .csv"
+                        style={{ display: 'none' }}
+                        onChange={onFileChange}
+                    />
                 </div>
             </div>
 
@@ -243,7 +285,8 @@ const Catalog = () => {
 
                 .empty-state { padding: 60px; text-align: center; color: #64748b; font-size: 0.9rem; }
             `}</style>
-        </div>
+
+        </div >
     );
 };
 

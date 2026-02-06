@@ -1,10 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.db.session import SessionLocal
 from app.models.models import Contract as DBContract, ConfigurationItem as DBConfigurationItem
 import pandas as pd
 import io
 from datetime import datetime
+import re
 import traceback
 
 router = APIRouter()
@@ -17,7 +19,14 @@ def get_db():
         db.close()
 
 def clean_col_name(col):
-    return str(col).lower().replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u')
+    import re
+    if not col: return ""
+    s = str(col).lower().strip()
+    # Normalize accents
+    s = s.replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n')
+    # Replace anything not alphanumeric with underscore
+    s = re.sub(r'[^a-z0-9]+', '_', s)
+    return s.strip('_')
 
 @router.post("/imports/contracts")
 async def import_contracts(file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -365,3 +374,174 @@ async def import_cmdb(file: UploadFile = File(...), db: Session = Depends(get_db
         print(f"CMDB IMPORT ERROR: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/imports/catalog")
+async def import_catalog(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        print(f"DEBUG: Starting Catalog Import: {file.filename}")
+        content = await file.read()
+        filename = file.filename.lower()
+        
+        df = None
+        try:
+            if filename.endswith('.csv'):
+                # Try to detect separator
+                preview = content[:4096].decode('utf-8', errors='ignore')
+                sep = ';' if preview.count(';') > preview.count(',') else ','
+                print(f"DEBUG: CSV detection - sep='{sep}'")
+                df = pd.read_csv(io.BytesIO(content), sep=sep)
+            else:
+                try: 
+                    df = pd.read_excel(io.BytesIO(content))
+                except Exception as e1: 
+                    print(f"DEBUG: Default Excel read failed: {e1}. Trying openpyxl.")
+                    df = pd.read_excel(io.BytesIO(content), engine='openpyxl')
+        except Exception as read_err:
+             print(f"DEBUG: File Read Error: {read_err}")
+             raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo. Error: {str(read_err)}")
+
+        if df is None or df.empty:
+            raise HTTPException(status_code=400, detail="El archivo está vacío.")
+
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        headers_map = {clean_col_name(h): h for h in df.columns}
+        print(f"DEBUG: Normalized Headers Found: {list(headers_map.keys())}")
+
+        from app.models.models import CatalogService, CatalogScenario
+        
+        services_map = {} 
+        scenarios_map = {} 
+        errors = []
+        
+        ALIASES = {
+            'service_id': ['codigo_servicio_sistema', 'id_servicio', 'cod_serv_sistema'],
+            'service_name': ['servicio', 'nombre_servicio', 'nombre_del_servicio'],
+            'service_desc': ['descripcion_servicio', 'desc_servicio'],
+            'category': ['categoria', 'nombre_categoria'],
+            'cat_code': ['codigo_categoria_sistema', 'cod_cat_sistema'],
+            'cat_desc': ['descripcion_categoria'],
+            'service_sief': ['codigo_sief', 'sief_servicio'],
+            'scenario_id': ['codigo_tipo_sistema', 'id_tipo', 'cod_tipo_sistema'],
+            'scenario_name': ['descripcion_tipo', 'nombre_tipo', 'nombre_escenario'],
+            'scenario_type': ['tipo', 'tipo_escenario'],
+            'scenario_sief': ['codigo_sief_tipo', 'sief_tipo']
+        }
+
+        def get_col(key):
+            for alias in ALIASES.get(key, []):
+                if alias in headers_map: return headers_map[alias]
+            return None
+
+        cols = {k: get_col(k) for k in ALIASES.keys()}
+        print(f"DEBUG: Resolved Columns: {cols}")
+        
+        if not cols['service_id']:
+             raise HTTPException(status_code=400, detail=f"No se encontró la columna de ID del Servicio. Detectadas: {list(headers_map.keys())}")
+        
+        df.dropna(how='all', inplace=True)
+        
+        for idx, row in df.iterrows():
+            try:
+                def gv(c_key):
+                    c_name = cols.get(c_key)
+                    if not c_name: return None
+                    val = row[c_name]
+                    return str(val).strip() if pd.notna(val) else None
+
+                s_id_raw = gv('service_id')
+                if not s_id_raw or s_id_raw.lower() == 'nan': continue
+                
+                # STRICT NORMALIZATION: Upper, Strip, and remove ANY non-alphanumeric/dash/underscore
+                s_id = re.sub(r'[^a-zA-Z0-9\-_]', '', s_id_raw.strip().upper())
+                if not s_id: continue
+                
+                if s_id not in services_map:
+                    services_map[s_id] = {
+                        "id": s_id,
+                        "category": gv('category') or 'General',
+                        "name": gv('service_name') or s_id,
+                        "category_code": gv('cat_code'),
+                        "category_description": gv('cat_desc'),
+                        "sief_code": gv('service_sief'),
+                        "service_description": gv('service_desc'),
+                        "icon": "Box"
+                    }
+                
+                sc_id_raw = gv('scenario_id')
+                if sc_id_raw and sc_id_raw.lower() != 'nan':
+                    # STRICT NORMALIZATION FOR SCENARIOS
+                    sc_id = re.sub(r'[^a-zA-Z0-9\-_]', '', sc_id_raw.strip().upper())
+                    if not sc_id: continue
+                    
+                    sc_type_raw = gv('scenario_type') or 'Incidente'
+                    scenarios_map[sc_id] = {
+                        "id": sc_id, 
+                        "service_id": s_id, 
+                        "sief_code": gv('scenario_sief'),
+                        "name": gv('scenario_name') or sc_type_raw,
+                        "type": 'request' if any(x in str(sc_type_raw).lower() for x in ['req', 'solicitud']) else 'incident',
+                        "priority": "P3", "complexity": "Low", "time": "0h"
+                    }
+            except Exception as row_e:
+                errors.append(f"Row {idx}: {str(row_e)}")
+
+        print(f"DEBUG: Parsed {len(services_map)} Services and {len(scenarios_map)} Scenarios (Deduplicated).")
+
+        # DB Upsert - Services & Scenarios (THE DEFINITIVE ROOT FIX: PG UPSERT)
+        try:
+            print(f"DEBUG: Starting Professional UPSERT for {len(services_map)} services and {len(scenarios_map)} scenarios.")
+
+            # 1. UPSERT Services
+            for s_id, s_data in services_map.items():
+                db.execute(text("""
+                    INSERT INTO catalog_services (id, category, name, category_code, category_description, sief_code, service_description, icon)
+                    VALUES (:id, :category, :name, :category_code, :category_description, :sief_code, :service_description, :icon)
+                    ON CONFLICT (id) DO UPDATE SET
+                        category = EXCLUDED.category,
+                        name = EXCLUDED.name,
+                        category_code = EXCLUDED.category_code,
+                        category_description = EXCLUDED.category_description,
+                        sief_code = EXCLUDED.sief_code,
+                        service_description = EXCLUDED.service_description,
+                        icon = EXCLUDED.icon
+                """), s_data)
+            
+            db.flush()
+
+            # 2. UPSERT Scenarios
+            for sc_id, sc_data in scenarios_map.items():
+                db.execute(text("""
+                    INSERT INTO catalog_scenarios (id, name, service_id, type, sief_code, priority, complexity, time)
+                    VALUES (:id, :name, :service_id, :type, :sief_code, :priority, :complexity, :time)
+                    ON CONFLICT (id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        service_id = EXCLUDED.service_id,
+                        type = EXCLUDED.type,
+                        sief_code = EXCLUDED.sief_code,
+                        priority = EXCLUDED.priority,
+                        complexity = EXCLUDED.complexity,
+                        time = EXCLUDED.time
+                """), sc_data)
+
+            db.commit()
+            print("DEBUG: Catalog Professional UPSERT successful.")
+            
+        except Exception as e:
+            db.rollback()
+            print(f"DEBUG: Professional UPSERT Failed: {e}")
+            traceback.print_exc()
+            raise HTTPException(status_code=400, detail=f"Error en base de datos: {str(e)}")
+        
+        return {
+            "status": "success",
+            "message": "Catálogo actualizado correctamente mediante UPSERT.",
+            "services_processed": len(services_map),
+            "scenarios_processed": len(scenarios_map)
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        print(f"CRITICAL IMPORT ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error Crítico en Servidor: {str(e)}")

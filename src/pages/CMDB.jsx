@@ -20,17 +20,25 @@ const CMDB = () => {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [filters, setFilters] = useState({});
 
+
+
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const cId = params.get('contractId');
+
+        // Prepare params for backend fetch
+        const fetchParams = {
+            skip: page * pageSize,
+            limit: pageSize
+        };
+
         if (cId) {
             setFilters(prev => ({ ...prev, contractId: cId }));
+            fetchParams.contractId = cId; // Server-side filter
         }
-    }, [location.search]);
 
-    useEffect(() => {
-        fetchCIs({ skip: page * pageSize, limit: pageSize });
-    }, [page, pageSize]);
+        fetchCIs(fetchParams);
+    }, [page, pageSize, location.search]); // React to URL changes
 
     // Sorting and Filtering (Client Side for loaded page)
     const handleSort = (key) => {
