@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bot, ArrowRight, CheckCircle, AlertTriangle, HelpCircle, Paperclip } from 'lucide-react';
+import { Bot, ArrowRight, CheckCircle, HelpCircle, Paperclip } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useIncidentStore from '../../store/useIncidentStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const P7M6_STEPS = {
     1: {
-        title: "Reporte del Problema",
+        title: "Atención del Caso (Afectación)",
         help: `Recopilar información inicial que describa claramente el contexto.\nResponder:\n- ¿Existe afectación de servicio?\n- ¿Síntomas?\n- ¿Parte de la red afectada?\n- ¿Dispositivos afectados?\n- ¿Failover activo?\n- ¿Se perdió acceso?\n- ¿Falla inesperada o cambio programado?`
     },
     2: {
@@ -29,21 +30,19 @@ const P7M6_STEPS = {
         help: `Validar la solución.\n- Acción inmediata o programada.\n- Plan de Rollback obligatorio.\n- Documentar cambios.`
     },
     7: {
-        title: "Resolución y Cierre",
+        title: "Resolución y Cierre (Lecciones)",
         help: `Documentar solución final.\n- Pasos ejecutados.\n- Comunicación a partes interesadas.\n- Lecciones aprendidas.`
     }
 };
 
 const P7M6Wizard = ({ incident }) => {
     const navigate = useNavigate();
-    const { validateStep, submitStep, validationResult, loading, closeIncident } = useIncidentStore();
+    const { validateStep, submitStep, validationResult, loading } = useIncidentStore();
     const [content, setContent] = useState('');
     const [fileName, setFileName] = useState('');
     const [stepState, setStepState] = useState('idle'); // idle, validating, reviewed, ready_next
 
-    // Load existing data for step if available
     useEffect(() => {
-        // Reset state on step change
         setStepState('idle');
         setFileName('');
 
@@ -69,26 +68,17 @@ const P7M6Wizard = ({ incident }) => {
         setStepState('reviewed');
     };
 
-    const handleDecision = async (accepted) => {
-        // Both choices allow moving forward. 
-        // We trigger submission immediately.
+    const handleDecision = async () => {
         await handleSubmit();
     };
 
     const handleSubmit = async () => {
-        // Combine text + file info if step 2
         let finalContent = content;
         if (incident.current_step === 2 && fileName) {
             finalContent += `\n[Archivo Adjunto: ${fileName}]`;
         }
 
-        if (isLastStep) {
-            await closeIncident(incident.id);
-            navigate('/incidents'); // Redirect to list after closing
-        } else {
-            await submitStep(incident.id, incident.current_step, finalContent);
-            // State resets via useEffect when current_step changes in props
-        }
+        await submitStep(incident.id, incident.current_step, finalContent);
     };
 
     const handleFileChange = (e) => {
@@ -98,321 +88,104 @@ const P7M6Wizard = ({ incident }) => {
     };
 
     return (
-        <div className="p7m6-wizard glass-panel">
-            <div className="wizard-header">
-                <div className="header-left">
-                    <div className="step-indicator">
-                        <span className="step-number">{incident.current_step}</span>
-                        <span className="step-total">/ 7</span>
-                    </div>
+        <div className="p7m6-wizard-lite">
+            <header className="wiz-header">
+                <div className="step-badge">{incident.current_step}</div>
+                <div>
                     <h2>{stepInfo.title}</h2>
+                    <p className="step-context">Fase: {incident.current_step === 1 ? 'Atención Técncia' : 'Resolución Experta'}</p>
                 </div>
-
-                {/* Ghost Help Icon */}
-                <div className="help-container">
-                    <HelpCircle className="help-icon" size={20} />
-                    <div className="help-tooltip">
-                        {stepInfo.help}
-                    </div>
+                <div className="help-bubble">
+                    <HelpCircle size={18} />
+                    <div className="tooltip">{stepInfo.help}</div>
                 </div>
-            </div>
+            </header>
 
-            {/* Input Area */}
-            <div className="step-input">
-                <label>Evidencia y Análisis</label>
+            <div className="input-zone">
+                <label>Documentación Obligatoria</label>
                 <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Ingrese su análisis y evidencia aquí..."
-                    rows={8}
-                    className="p7m6-textarea"
+                    placeholder="Escriba los detalles técnicos del paso..."
+                    rows={10}
                 />
 
-                {/* Step 2: File Attachment Option */}
                 {incident.current_step === 2 && (
-                    <div className="file-attachment mt-4">
-                        <label className="file-label">
-                            <Paperclip size={16} />
-                            {fileName ? fileName : 'Adjuntar Documentación (Logs, Diagramas)'}
-                            <input type="file" onChange={handleFileChange} style={{ display: 'none' }} />
+                    <div className="file-box">
+                        <label className="file-input-wrapper">
+                            <Paperclip size={14} />
+                            {fileName || "Adjuntar Evidencia Técnica (Zip/Logs/Img)"}
+                            <input type="file" onChange={handleFileChange} />
                         </label>
                     </div>
                 )}
             </div>
 
-            {/* AI Feedback Section */}
-            {(stepState === 'reviewed' || stepState === 'ready_next') && validationResult && (
-                <div className={`ai-feedback ${validationResult.approved ? 'approved' : 'warning'} ai-3d-card`}>
-                    <div className="ai-header">
-                        <Bot size={20} /> <span>Diagnóstico IA</span>
-                        <span className={`ai-score ${validationResult.score >= 7 ? 'high' : 'low'}`}>
-                            {validationResult.score}/10
-                        </span>
-                    </div>
-                    <div className="ai-body">
-                        {validationResult.feedback}
-                    </div>
-
-                    {stepState === 'reviewed' && (
-                        <div className="decision-actions">
-                            <button className="btn-decision accept" onClick={() => handleDecision(true)}>
-                                <CheckCircle size={16} /> Aceptar y Continuar
-                            </button>
-                            <button className="btn-decision keep" onClick={() => handleDecision(false)}>
-                                Mantener y Continuar
+            <AnimatePresence>
+                {validationResult && stepState === 'reviewed' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="ai-report">
+                        <div className="report-top">
+                            <Bot size={18} />
+                            <span>Validación de Calidad Técnica</span>
+                            <div className={`score ${validationResult.score >= 7 ? 'good' : 'bad'}`}>{validationResult.score}/10</div>
+                        </div>
+                        <p>{validationResult.feedback}</p>
+                        <div className="report-actions">
+                            <button className="btn-go" onClick={handleDecision}>
+                                <CheckCircle size={14} /> {isLastStep ? 'Finalizar y Pedir Confirmación' : 'Avanzar al Siguiente Paso'}
                             </button>
                         </div>
-                    )}
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* Wizard Actions */}
-            <div className="wizard-actions">
-                {/* AI Button - Always visible */}
+            <div className="wiz-footer">
                 <button
-                    className={`btn-ghost ai-trigger ${stepState === 'validating' ? 'pulsing' : ''}`}
+                    className={`btn-validate ${loading ? 'loading' : ''}`}
                     onClick={handleValidate}
-                    disabled={loading || !content || stepState === 'validating'}
+                    disabled={loading || !content.trim()}
                 >
-                    <Bot size={16} style={{ marginRight: 8 }} />
-                    {loading ? 'Analizando...' : 'Validar con IA'}
+                    <Bot size={16} /> {loading ? 'Validando...' : 'Validar con IA (P7M6)'}
                 </button>
 
-                {/* Continue Button - Only visible if previous data exists (skipping validation) */}
-                {(stepState === 'idle' && incident.step_data && JSON.parse(incident.step_data)[incident.current_step]) && (
-                    <button
-                        className="btn-primary"
-                        onClick={handleSubmit}
-                    >
-                        {isLastStep ? 'Cerrar Incidente' : 'Continuar al Siguiente Paso'}
-                        <ArrowRight size={16} style={{ marginLeft: 8 }} />
-                    </button>
+                {/* Optional Jump Button if data already exists */}
+                {incident.step_data && JSON.parse(incident.step_data)[incident.current_step] && stepState === 'idle' && (
+                    <button className="btn-jump" onClick={handleSubmit}>Continuar <ArrowRight size={14} /></button>
                 )}
             </div>
 
             <style>{`
-                .p7m6-wizard {
-                    padding: 24px;
-                    border: 1px solid rgba(5, 196, 107, 0.1);
-                    box-shadow: 0 0 20px rgba(0,0,0,0.3);
-                    position: relative;
-                }
-                .wizard-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                    padding-bottom: 15px;
-                }
-                .header-left { display: flex; align-items: center; gap: 16px; }
+                .p7m6-wizard-lite { background: #fff; border-radius: 20px; border: 1px solid #f1f5f9; padding: 32px; }
+                .wiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; position: relative; }
+                .step-badge { background: #008F39; color: #fff; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.25rem; }
+                .wiz-header h2 { font-size: 1.1rem; font-weight: 800; color: #1e293b; margin: 0; }
+                .step-context { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
                 
-                .step-indicator {
-                    background: var(--color-primary);
-                    color: #fff;
-                    width: 42px;
-                    height: 42px;
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-family: 'JetBrains Mono', monospace;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-                }
-                .step-number { font-size: 1.2rem; }
-                .step-total { font-size: 0.75rem; opacity: 0.8; margin-left: 2px; }
+                .help-bubble { margin-left: auto; color: #cbd5e1; cursor: help; }
+                .help-bubble:hover { color: #008F39; }
+                .tooltip { position: absolute; right: 0; top: 100%; width: 280px; background: #0f172a; color: #f1f5f9; padding: 16px; border-radius: 12px; font-size: 0.8rem; line-height: 1.5; z-index: 100; opacity: 0; visibility: hidden; transition: 0.2s; white-space: pre-line; }
+                .help-bubble:hover .tooltip { opacity: 1; visibility: visible; transform: translateY(8px); }
 
-                /* Ghost Help */
-                .help-container {
-                    position: relative;
-                    cursor: help;
-                }
-                .help-icon {
-                    color: rgba(255,255,255,0.2);
-                    transition: color 0.3s;
-                }
-                .help-container:hover .help-icon {
-                    color: rgba(255,255,255,0.8);
-                }
-                .help-tooltip {
-                    position: absolute;
-                    top: 100%;
-                    right: 0;
-                    width: 320px;
-                    background: rgba(10, 10, 10, 0.95);
-                    backdrop-filter: blur(15px);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    color: #ccc;
-                    padding: 16px;
-                    border-radius: 12px;
-                    font-size: 0.85rem;
-                    line-height: 1.6;
-                    white-space: pre-line;
-                    opacity: 0;
-                    visibility: hidden;
-                    transform: translateY(10px);
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    z-index: 50;
-                    pointer-events: none;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                }
-                .help-container:hover .help-tooltip {
-                    opacity: 1;
-                    visibility: visible;
-                    transform: translateY(0);
-                }
-
-                .p7m6-textarea {
-                    width: 100%;
-                    background: rgba(0,0,0,0.2);
-                    border: 1px solid var(--border-color);
-                    color: #e0e0e0;
-                    padding: 16px;
-                    border-radius: 8px;
-                    font-family: inherit;
-                    resize: vertical;
-                    min-height: 150px;
-                    transition: all 0.3s;
-                }
-                .p7m6-textarea:focus { 
-                    border-color: var(--color-primary-dim); 
-                    background: rgba(0,0,0,0.3);
-                    box-shadow: 0 0 0 1px var(--color-primary-dim);
-                    outline: none; 
-                }
+                .input-zone label { display: block; font-size: 0.7rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
+                .input-zone textarea { width: 100%; background: #f8fafc; border: 1.5px solid #f1f5f9; border-radius: 12px; padding: 16px; font-size: 0.95rem; font-weight: 500; color: #1e293b; transition: all 0.2s; resize: none; overflow-y: auto; }
+                .input-zone textarea:focus { background: #fff; border-color: #008F39; outline: none; }
                 
-                .file-label {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 8px 16px;
-                    background: rgba(255,255,255,0.03);
-                    border: 1px dashed rgba(255,255,255,0.2);
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 0.85rem;
-                    color: var(--text-muted);
-                    transition: all 0.2s;
-                }
-                .file-label:hover {
-                    background: rgba(255,255,255,0.08);
-                    color: #e0e0e0;
-                    border-color: #666;
-                }
+                .file-box { margin-top: 12px; }
+                .file-input-wrapper { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px dashed #cbd5e1; }
+                .file-input-wrapper input { display: none; }
 
-                /* AI 3D Card Style */
-                .ai-3d-card {
-                    margin-top: 24px;
-                    padding: 24px;
-                    border-radius: 16px;
-                    background: linear-gradient(145deg, rgba(20,20,20,0.6), rgba(10,10,10,0.8));
-                    border: 1px solid rgba(255,255,255,0.05);
-                    box-shadow: 
-                        0 10px 20px rgba(0,0,0,0.3),
-                        inset 0 1px 0 rgba(255,255,255,0.05);
-                    position: relative;
-                    overflow: hidden;
-                    animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                }
-                
-                .ai-3d-card::before {
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 0; width: 100%; height: 4px;
-                    background: linear-gradient(90deg, var(--color-primary), transparent);
-                }
+                .ai-report { background: #f8fafc; border: 1.5px solid #008F39; border-radius: 16px; padding: 20px; margin-top: 24px; }
+                .report-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: #008F39; font-weight: 800; font-size: 0.85rem; }
+                .score { margin-left: auto; font-family: monospace; padding: 2px 8px; border-radius: 6px; }
+                .score.good { background: #dcfce7; color: #15803d; }
+                .score.bad { background: #fee2e2; color: #dc2626; }
+                .ai-report p { font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 16px; }
+                .btn-go { background: #008F39; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
 
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-                .ai-header {
-                    display: flex;
-                    gap: 12px;
-                    align-items: center;
-                    font-weight: 700;
-                    margin-bottom: 16px;
-                    color: var(--color-primary);
-                    font-size: 1rem;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }
-                .ai-score { 
-                    margin-left: auto; 
-                    padding: 4px 12px; 
-                    border-radius: 20px; 
-                    font-family: 'JetBrains Mono', monospace; 
-                    font-weight: 800;
-                    font-size: 1rem;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-                }
-                .ai-score.high { background: var(--color-primary); color: #fff; }
-                .ai-score.low { background: #ff4757; color: #fff; }
-
-                .ai-body {
-                    color: #ccc;
-                    line-height: 1.6;
-                    font-size: 0.95rem;
-                }
-
-                .decision-actions {
-                    display: flex;
-                    gap: 16px;
-                    margin-top: 24px;
-                    padding-top: 20px;
-                    border-top: 1px solid rgba(255,255,255,0.05);
-                }
-                .btn-decision {
-                    flex: 1;
-                    padding: 12px;
-                    border-radius: 10px;
-                    border: 1px solid transparent;
-                    cursor: pointer;
-                    font-size: 0.9rem;
-                    font-weight: 600;
-                    transition: all 0.2s;
-                }
-                .btn-decision.accept { 
-                    background: rgba(5, 196, 107, 0.15); 
-                    color: #05c46b; 
-                    border-color: rgba(5, 196, 107, 0.3); 
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    gap: 10px; 
-                }
-                .btn-decision.accept:hover { 
-                    background: rgba(5, 196, 107, 0.25); 
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(5, 196, 107, 0.15);
-                }
-                .btn-decision.keep { 
-                    background: rgba(255,255,255,0.05); 
-                    border-color: rgba(255,255,255,0.1); 
-                    color: #aaa; 
-                }
-                .btn-decision.keep:hover { 
-                    border-color: #fff; 
-                    color: #fff; 
-                    background: rgba(255,255,255,0.1);
-                }
-
-                .wizard-actions {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-top: 32px;
-                    padding-top: 20px;
-                    border-top: 1px solid rgba(255,255,255,0.05);
-                    align-items: center;
-                }
-                .ai-trigger { 
-                    border: 1px solid rgba(5, 196, 107, 0.3); 
-                    color: var(--color-primary);
-                    background: transparent;
-                }
-                .ai-trigger:hover {
-                    background: rgba(5, 196, 107, 0.05);
-                }
-                .pulsing { animation: pulse 1.5s infinite; }
+                .wiz-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+                .btn-validate { background: #fff; border: 1.5px solid #008F39; color: #008F39; padding: 10px 20px; border-radius: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+                .btn-validate:disabled { opacity: 0.5; cursor: not-allowed; }
+                .btn-jump { background: #f1f5f9; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; color: #64748b; cursor: pointer; display: flex; align-items: center; gap: 8px; }
             `}</style>
         </div>
     );

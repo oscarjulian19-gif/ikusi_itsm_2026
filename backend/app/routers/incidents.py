@@ -20,8 +20,12 @@ class TicketCreate(BaseModel):
     vendor_case_id: Optional[str] = None
     service_category: Optional[str] = None
     service_name: Optional[str] = None
+    requester_name: Optional[str] = None
+    serial_number: Optional[str] = None
+    scenario_id: Optional[str] = None
     type: str = "incident" # 'incident' or 'request'
     assigned_team: Optional[str] = None
+    assigned_engineer: Optional[str] = None
 
 class TicketResponse(BaseModel):
     id: str
@@ -33,6 +37,9 @@ class TicketResponse(BaseModel):
     vendor_case_id: Optional[str]
     service_category: Optional[str]
     service_name: Optional[str]
+    requester_name: Optional[str]
+    serial_number: Optional[str]
+    scenario_id: Optional[str]
     created_at: datetime
     attention_start_at: Optional[datetime]
     resolution_start_at: Optional[datetime]
@@ -41,6 +48,11 @@ class TicketResponse(BaseModel):
     step_data: str # JSON string
     ai_scores: str
     ticket_type: str
+    assigned_engineer: Optional[str]
+    attention_end_at: Optional[datetime]
+    resolution_end_at: Optional[datetime]
+    customer_confirmed: bool = False
+    customer_confirmed_at: Optional[datetime]
     
     class Config:
         from_attributes = True
@@ -101,8 +113,14 @@ def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
         vendor_case_id=ticket.vendor_case_id,
         service_category=ticket.service_category,
         service_name=ticket.service_name,
+        requester_name=ticket.requester_name,
+        serial_number=ticket.serial_number,
+        scenario_id=ticket.scenario_id,
         ticket_type=ticket.type,
-        status="Abierto"
+        assigned_engineer=ticket.assigned_engineer,
+        status="En Atención",
+        current_step=1, # Starts immediately at P7M6 Step 1 (Atención)
+        attention_start_at=datetime.now(timezone.utc)
     )
     db.add(db_ticket)
     db.commit()
@@ -185,8 +203,17 @@ def submit_step(ticket_id: str, submission: StepSubmission, db: Session = Depend
     ticket.step_data = json.dumps(current_data)
     
     # Advance Step if it's the current one
-    if ticket.current_step == submission.step_number and ticket.current_step < 7:
-        ticket.current_step += 1
+    if ticket.current_step == submission.step_number:
+        if submission.step_number == 1:
+            ticket.status = "En Resolución"
+            ticket.attention_end_at = datetime.now(timezone.utc)
+            ticket.resolution_start_at = datetime.now(timezone.utc)
+            ticket.current_step = 2
+        elif submission.step_number == 7:
+            ticket.status = "Pendiente Confirmación"
+            ticket.resolution_end_at = datetime.now(timezone.utc)
+        elif ticket.current_step < 7:
+            ticket.current_step += 1
     
     db.commit()
     db.refresh(ticket)
@@ -226,14 +253,16 @@ def resume_ticket(ticket_id: str, db: Session = Depends(get_db)):
     db.refresh(ticket)
     return ticket
 
-@router.put("/tickets/{ticket_id}/close", response_model=TicketResponse)
-def close_ticket(ticket_id: str, db: Session = Depends(get_db)):
+@router.put("/tickets/{ticket_id}/confirm_closure", response_model=TicketResponse)
+def confirm_closure(ticket_id: str, db: Session = Depends(get_db)):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
         
     ticket.status = "Cerrado"
     ticket.closed_at = datetime.now(timezone.utc)
+    ticket.customer_confirmed = True
+    ticket.customer_confirmed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ticket)
     return ticket

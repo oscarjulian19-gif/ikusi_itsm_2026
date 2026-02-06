@@ -68,13 +68,14 @@ const Dashboard = () => {
   const { fetchContracts, total: totalContracts } = useContractStore();
   const { fetchCIs, total: totalCIs } = useCMDBStore();
   const { incidents, fetchIncidents } = useIncidentStore();
-  const { services } = useCatalogStore(); // Adding catalog store
+  const { services, fetchCatalog } = useCatalogStore(); // Adding catalog store
 
   useEffect(() => {
     fetchContracts({ limit: 1 });
     fetchCIs({ limit: 1 });
     fetchIncidents();
-  }, [fetchContracts, fetchCIs, fetchIncidents]);
+    fetchCatalog();
+  }, [fetchContracts, fetchCIs, fetchIncidents, fetchCatalog]);
 
   // Metric Calculations
   const activeIncidents = incidents.filter(i => i.ticket_type === 'incident' && !['Cerrado', 'Resuelto'].includes(i.status)).length;

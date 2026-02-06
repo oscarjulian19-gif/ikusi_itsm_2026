@@ -12,7 +12,8 @@ router = APIRouter()
 # --- Schemas ---
 
 class CIBase(BaseModel):
-    id: str # CI Number (Mandatory in payload or generated? User implies Import has it)
+    id: str # System ID
+    ciNumber: Optional[str] = None
     serialNumber: Optional[str] = None
     referenceNumber: Optional[str] = None
     client: str
@@ -78,6 +79,7 @@ def read_cis(
     for c in cis:
         result_data.append({
             "id": c.id,
+            "ciNumber": c.ci_number,
             "serialNumber": c.serial_number,
             "referenceNumber": c.reference_number,
             "client": c.client,
@@ -110,6 +112,7 @@ def read_ci(ci_id: str, db: Session = Depends(get_db)):
         
     return {
         "id": c.id,
+        "ciNumber": c.ci_number,
         "serialNumber": c.serial_number,
         "referenceNumber": c.reference_number,
         "client": c.client,
@@ -133,9 +136,35 @@ def read_ci(ci_id: str, db: Session = Depends(get_db)):
         "snowContract": c.snow_contract
     }
 
+def generate_ci_id(db: Session) -> str:
+    """
+    Generates a CI ID following XXyyyyyyyyyy rule.
+    XX = Last 2 digits of current year.
+    yyyyyyyyyy = 10-digit consecutive.
+    """
+    now = datetime.now()
+    yy = now.strftime("%y")
+    prefix = yy
+    
+    # Simple search for the max ID starting with this year's prefix
+    last_ci = db.query(DBConfigurationItem).filter(DBConfigurationItem.id.like(f"{prefix}%")).order_by(DBConfigurationItem.id.desc()).first()
+    
+    consecutive = 1
+    if last_ci:
+        try:
+            # Extract the numeric part (everything after the YY prefix)
+            num_part = last_ci.id[2:]
+            if num_part.isdigit():
+                consecutive = int(num_part) + 1
+        except:
+            pass
+            
+    return f"{prefix}{consecutive:010d}"
+
 @router.post("/cmdb", response_model=CIResponse)
 def create_ci(ci: CICreate, db: Session = Depends(get_db)):
-    existing = db.query(DBConfigurationItem).filter(DBConfigurationItem.id == ci.id).first()
+    # The user says "deberá ser asignado por el sistema"
+    system_id = generate_ci_id(db)
     
     # Helper for dates
     def parse_dt(d):
@@ -146,7 +175,8 @@ def create_ci(ci: CICreate, db: Session = Depends(get_db)):
             return None
 
     db_ci = DBConfigurationItem(
-        id=ci.id,
+        id=system_id,
+        ci_number=ci.ciNumber,
         serial_number=ci.serialNumber,
         reference_number=ci.referenceNumber,
         client=ci.client,
@@ -170,15 +200,11 @@ def create_ci(ci: CICreate, db: Session = Depends(get_db)):
         snow_contract=ci.snowContract
     )
     
-    if existing:
-        db.delete(existing)
-        db.commit()
-    
     db.add(db_ci)
     db.commit()
     db.refresh(db_ci)
     
-    return ci
+    return db_ci
 
 @router.put("/cmdb/{ci_id}")
 def update_ci(ci_id: str, ci_update: CIUpdate, db: Session = Depends(get_db)):
@@ -191,6 +217,7 @@ def update_ci(ci_id: str, ci_update: CIUpdate, db: Session = Depends(get_db)):
         try: return datetime.strptime(d[:10], "%Y-%m-%d")
         except: return None
 
+    db_ci.ci_number = ci_update.ciNumber
     db_ci.serial_number = ci_update.serialNumber
     db_ci.reference_number = ci_update.referenceNumber
     db_ci.client = ci_update.client
@@ -216,3 +243,17 @@ def update_ci(ci_id: str, ci_update: CIUpdate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_ci)
     return {"id": ci_id, "message": "Updated successfully"}
+
+@router.delete("/cmdb/all/dangerous")
+def delete_all_cis(db: Session = Depends(get_db)):
+    """
+    DANGEROUS: Deletes all configuration items from the database.
+    Used for full reloads.
+    """
+    try:
+        num_deleted = db.query(DBConfigurationItem).delete()
+        db.commit()
+        return {"message": f"Successfully deleted {num_deleted} items.", "count": num_deleted}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

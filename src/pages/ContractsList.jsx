@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, Search, Filter, Upload, FileSpreadsheet, Briefcase, Loader, FileJson, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import useContractStore from '../store/useContractStore';
+import useSlaStore from '../store/useSlaStore';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -9,6 +10,7 @@ import 'jspdf-autotable';
 const ContractsList = () => {
     const navigate = useNavigate();
     const { contracts, total, uploadContracts, fetchContracts, loading, error } = useContractStore();
+    const { slas, fetchSlas } = useSlaStore();
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(100);
     const [uploading, setUploading] = useState(false);
@@ -19,6 +21,7 @@ const ContractsList = () => {
 
     useEffect(() => {
         fetchContracts();
+        fetchSlas();
     }, []);
 
     const handleFileUpload = async (e) => {
@@ -182,7 +185,9 @@ const ContractsList = () => {
                                     <td className="font-bold">{contract.client}</td>
                                     <td className="text-sm text-truncate" style={{ maxWidth: '200px' }} title={contract.description}>{contract.description || '-'}</td>
                                     <td className="text-sm">{contract.folio || '-'}</td>
-                                    <td className="text-sm font-semibold text-secondary">{contract.slaType || '-'}</td>
+                                    <td className="text-sm font-semibold text-secondary">
+                                        {slas.find(s => s.id === contract.slaType)?.name || contract.slaType || '-'}
+                                    </td>
                                     <td className="text-sm">{contract.projectName || '-'}</td>
                                     <td className="font-mono text-muted-sm">{contract.pep}</td>
                                     <td>

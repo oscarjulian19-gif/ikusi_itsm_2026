@@ -18,14 +18,24 @@ class Ticket(Base):
     vendor_case_id = Column(String, nullable=True)
     service_category = Column(String, nullable=True)
     service_name = Column(String, nullable=True)
+    requester_name = Column(String, nullable=True)
+    serial_number = Column(String, nullable=True)
+    scenario_id = Column(String, nullable=True)
+    assigned_engineer = Column(String, nullable=True)
     
     # P7M6 & Time Tracking
     ticket_type = Column(String, default="incident") # incident, request
     
     # Timestamps
-    attention_start_at = Column(DateTime(timezone=True), server_default=func.now()) # Same as created_at usually, but explicit
+    attention_start_at = Column(DateTime(timezone=True), server_default=func.now())
+    attention_end_at = Column(DateTime(timezone=True), nullable=True)
     resolution_start_at = Column(DateTime(timezone=True), nullable=True)
+    resolution_end_at = Column(DateTime(timezone=True), nullable=True)
     closed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Customer Confirmation
+    customer_confirmed = Column(Boolean, default=False)
+    customer_confirmed_at = Column(DateTime(timezone=True), nullable=True)
     
     # Steps Data (JSON stored as String for broad compatibility or proper JSON type)
     current_step = Column(Integer, default=0) # 0=Not started, 1-7=P7M6 Steps
@@ -96,7 +106,8 @@ class ConfigurationItem(Base):
     __tablename__ = "configuration_items"
     
     # Core Identity
-    id = Column(String, primary_key=True) # Número CI
+    id = Column(String, primary_key=True) # Número de Configuration ITEM (Sistema)
+    ci_number = Column(String, index=True, nullable=True) # Número de CI (Funcional)
     serial_number = Column(String, index=True) # Número Serial
     reference_number = Column(String, nullable=True) # Número referencia
     client = Column(String) # Cliente
@@ -181,4 +192,20 @@ class CatalogScenario(Base):
     # Common
     keywords = Column(Text, nullable=True)
     
+    
     service = relationship("CatalogService", back_populates="scenarios")
+
+class SLASetting(Base):
+    __tablename__ = "sla_settings"
+    id = Column(String, primary_key=True) # Low, Medium, High, Critical
+    name = Column(String)
+    attention_min = Column(Integer)
+    solution_hours = Column(Integer)
+    attention_display = Column(String)
+    solution_display = Column(String)
+
+class ServicePackageSetting(Base):
+    __tablename__ = "service_package_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)
+    description = Column(Text, nullable=True)

@@ -190,7 +190,8 @@ const CMDB = () => {
                     <table className="neon-table-clean">
                         <thead>
                             <tr>
-                                {renderHeader('Número CI', 'id')}
+                                {renderHeader('Número de Configuration ITEM', 'id')}
+                                {renderHeader('Número de CI', 'ciNumber')}
                                 {renderHeader('Serial', 'serialNumber')}
                                 {renderHeader('Referencia', 'referenceNumber')}
                                 {renderHeader('Cliente', 'client')}
@@ -218,6 +219,7 @@ const CMDB = () => {
                             {processedCIs.map(ci => (
                                 <tr key={ci.id} onClick={() => navigate(`/cmdb/${ci.id}`)} className="table-row-clean">
                                     <td className="font-mono font-bold text-primary">{ci.id}</td>
+                                    <td className="font-mono font-semibold">{ci.ciNumber || '-'}</td>
                                     <td className="font-mono">{ci.serialNumber}</td>
                                     <td className="text-muted-sm">{ci.referenceNumber || '-'}</td>
                                     <td className="font-bold">{ci.client}</td>

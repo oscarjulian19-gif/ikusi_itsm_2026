@@ -204,7 +204,27 @@ export const aiApi = {
         return request(`/tickets/${id}/resume`, { method: 'POST' });
     },
 
-    closeTicket: async (id) => {
-        return request(`/tickets/${id}/close`, { method: 'PUT' });
+    confirmClosure: async (id) => {
+        return request(`/tickets/${id}/confirm_closure`, { method: 'PUT' });
+    },
+
+    // --- CONFIG (SLAs & Packages) ---
+    getSlas: async () => {
+        return request('/config/slas');
+    },
+    updateSla: async (id, data) => {
+        return request(`/config/slas/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    },
+    getPackages: async () => {
+        return request('/config/packages');
+    },
+    createPackage: async (data) => {
+        return request('/config/packages', { method: 'POST', body: JSON.stringify(data) });
+    },
+    updatePackage: async (id, data) => {
+        return request(`/config/packages/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    },
+    deletePackage: async (id) => {
+        return request(`/config/packages/${id}`, { method: 'DELETE' });
     }
 };

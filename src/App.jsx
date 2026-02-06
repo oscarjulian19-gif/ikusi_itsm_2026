@@ -29,12 +29,12 @@ function App() {
 
           {/* Incident Management Routes */}
           <Route path="incidents" element={<Incidents type="incident" />} />
-          <Route path="incidents/new" element={<IncidentForm type="incident" />} />
-          <Route path="incidents/:id" element={<IncidentForm type="incident" />} />
+          <Route path="incidents/new" element={<IncidentForm key="incident-new" type="incident" />} />
+          <Route path="incidents/:id" element={<IncidentForm key="incident-edit" type="incident" />} />
 
           <Route path="requests" element={<Incidents type="request" />} />
-          <Route path="requests/new" element={<IncidentForm type="request" />} />
-          <Route path="requests/:id" element={<IncidentForm type="request" />} />
+          <Route path="requests/new" element={<IncidentForm key="request-new" type="request" />} />
+          <Route path="requests/:id" element={<IncidentForm key="request-edit" type="request" />} />
 
 
           {/* Contracts Management Routes */}

@@ -205,173 +205,179 @@ async def import_contracts(file: UploadFile = File(...), db: Session = Depends(g
 @router.post("/imports/cmdb")
 async def import_cmdb(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
+        print(f"DEBUG: Starting CMDB Professional UPSERT: {file.filename}")
         content = await file.read()
         filename = file.filename.lower()
         
-        if filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(content))
-        else:
-            df = pd.read_excel(io.BytesIO(content))
+        df = None
+        try:
+            if filename.endswith('.csv'):
+                preview = content[:4096].decode('utf-8', errors='ignore')
+                sep = ';' if preview.count(';') > preview.count(',') else ','
+                df = pd.read_csv(io.BytesIO(content), sep=sep)
+            else:
+                try: df = pd.read_excel(io.BytesIO(content))
+                except: df = pd.read_excel(io.BytesIO(content), engine='openpyxl')
+        except Exception as read_err:
+             raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo: {str(read_err)}")
 
-        col_map = {
-            'id': 'id', 'numero ci': 'id', 'ci': 'id', 
-            'serial': 'serial_number', 'numero serial': 'serial_number', 'sn': 'serial_number',
-            'referencia': 'reference_number', 'numero referencia': 'reference_number', 
-            'cliente': 'client',
-            'descripcion': 'description', 
-            'estado': 'status',
-            'inicio': 'start_date', 
-            'fin': 'end_date',
-            'numero de po': 'po_number', 'po': 'po_number', 
-            'numero de so': 'so_number', 'so': 'so_number',
-            'fecha fin soporte cisco': 'cisco_support_end_date',
-            'fecha inicio soporte cisco': 'cisco_support_start_date',
-            'contrato cisco': 'cisco_contract_number',
-            'contrato snow': 'snow_contract',
-            'numero de contrato': 'contract_id',
-            'ciudad': 'city', 
-            'direccion': 'address',
-            'nombre proyecto': 'project_name',
-            'pep': 'pep',
-            'pais': 'country',
-            'tipo': 'type',
-            'modelo equipo': 'device_model', 'modelo': 'device_model'
+        if df is None or df.empty:
+            raise HTTPException(status_code=400, detail="El archivo está vacío.")
+
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        headers_map = {clean_col_name(h): h for h in df.columns}
+
+        CMDB_ALIASES = {
+            'id_sistema': ['id', 'id_sistema', 'system_id', 'numero_de_activo_sistema', 'número_de_activo_sistema'],
+            'ci_number': ['numero_ci', 'número_ci', 'ci', 'codigo_ci', 'código_ci', 'ci_number', 'numero_de_activo', 'número_de_activo', 'activo', 'numero_de_ci', 'número_de_ci'],
+            'serial_number': ['serial', 'numero_serial', 'número_serial', 'sn', 's_n', 'serial_number', 'serie'],
+            'reference_number': ['referencia', 'numero_referencia', 'número_referencia', 'reference'],
+            'client': ['cliente', 'customer', 'empresa'],
+            'description': ['descripcion', 'descripción', 'description', 'nombre_equipo'],
+            'status': ['estado', 'status', 'state'],
+            'start_date': ['inicio', 'fecha_inicio', 'start_date'],
+            'end_date': ['fin', 'fecha_fin', 'end_date', 'expiry'],
+            'po_number': ['numero_de_po', 'número_de_po', 'po', 'purchase_order', 'orden_compra'],
+            'so_number': ['numero_de_so', 'número_de_so', 'so', 'sales_order', 'orden_venta'],
+            'cisco_support_end': ['fecha_fin_soporte_cisco', 'cisco_support_end', 'fin_soporte'],
+            'cisco_support_start': ['fecha_inicio_soporte_cisco', 'cisco_support_start', 'inicio_soporte'],
+            'cisco_contract': ['contrato_cisco', 'cisco_contract'],
+            'snow_contract': ['contrato_snow', 'snow_contract', 'snow'],
+            'contract_id': ['numero_de_contrato', 'número_de_contrato', 'id_contrato', 'contract_id'],
+            'city': ['ciudad', 'city', 'municipio'],
+            'address': ['direccion', 'dirección', 'address', 'ubicacion', 'ubicación'],
+            'project_name': ['nombre_proyecto', 'proyecto', 'project'],
+            'pep': ['pep', 'codigo_pep', 'código_pep'],
+            'country': ['pais', 'país', 'country'],
+            'type': ['tipo', 'type', 'categoria_equipo', 'categoría_equipo'],
+            'device_model': ['modelo_equipo', 'modelo', 'model', 'part_number']
         }
-        
-        # 1. Map Columns Safely
-        df_cols_map = {}
-        for c in df.columns:
-            clean = clean_col_name(c)
-            # Use loose matching like before?
-            # The previous logic was: if k in clean_col_name(col). 
-            # We must preserve that flexibility but ensure 1:1 final mapping for reconstruction.
-            # Strategy: Find the best match for each target field.
-            pass
 
-        # We'll invert the logic: For each DF column, see if it matches a known key.
-        # If multiple DF columns match the same key, last one wins? Or first?
-        # Better: For each TARGET field, find the first DF column that matches.
-        
-        target_to_source = {}
-        
-        # We need a list of (key, target) from col_map
-        # And we iterate DF columns.
-        
-        assigned_cols = set()
-        
-        for col in df.columns:
-            cc = clean_col_name(col)
-            # specific fix for 'contrato' vs 'numero de contrato'
-            # 'contrato' keyword is in both. 'numero de contrato' is more specific.
-            # If we iterate col_map, we might pick wrong one.
-            # But here we are iterating DF columns.
-            
-            # Let's simple check:
-            matched_target = None
-            maxLength = -1
-            
-            for k, v in col_map.items():
-                if k in cc:
-                    # Found a match. Is it the best match?
-                    # e.g. "numero de contrato" matches "contrato" and "numero de contrato".
-                    # "numero de contrato" is longer. Prefer longer matches?
-                    if len(k) > maxLength:
-                        maxLength = len(k)
-                        matched_target = v
-            
-            if matched_target:
-                # We map this source col to this target.
-                # If target already has a source? Overwrite?
-                target_to_source[matched_target] = col
-        
-        # 2. Extract Data
-        new_data = {}
-        for target_col, source_col in target_to_source.items():
-             series = df[source_col]
-             # Handle duplicates in source if DF read produced duplicates (unlikely with just names)
-             # But if source has "Col" and "Col.1", target_to_source only points to one string name.
-             # df[name] returns Series.
-             if isinstance(series, pd.DataFrame):
-                 series = series.iloc[:, 0] # Take first
-             new_data[target_col] = series.values
-             
-        clean_df = pd.DataFrame(new_data)
-        clean_df.fillna('', inplace=True) # Fill NaNs with empty string generally, or handle per row
-        
+        def get_col_from_aliases(target_key):
+            for alias in CMDB_ALIASES.get(target_key, []):
+                if alias in headers_map: return headers_map[alias]
+            return None
+
+        resolved_cols = {k: get_col_from_aliases(k) for k in CMDB_ALIASES.keys()}
+        print(f"DEBUG: Resolved CMDB Columns: {resolved_cols}")
         records = []
-        consecutive = 1
         
-        def safe_get(row, col):
-            if col not in row: return ''
-            val = row[col]
-            if pd.isna(val): return ''
-            return str(val).strip()
-            
-        def to_dt(v):
-            if not v: return None
-            if pd.isna(v): return None
-            try: return pd.to_datetime(v).to_pydatetime()
-            except: return None
-            
+        # Get starting consecutive for the year
+        now = datetime.now()
+        yy = now.strftime("%y")
+        prefix = yy
+        
+        last_ci = db.query(DBConfigurationItem).filter(DBConfigurationItem.id.like(f"{prefix}%")).order_by(DBConfigurationItem.id.desc()).first()
+        consecutive = 1
+        if last_ci:
+            try:
+                num_part = last_ci.id[2:]
+                if num_part.isdigit():
+                    consecutive = int(num_part) + 1
+            except: pass
+
         seen_ids = set()
-        for _, row in clean_df.iterrows():
-            c_id = safe_get(row, 'id')
-            if not c_id:
-                 sn = safe_get(row, 'serial_number')
-                 if sn: c_id = sn
-                 else:
-                     c_id = f"CI-GEN-{consecutive:06d}"
-                     consecutive += 1
+        df.fillna('', inplace=True)
+        
+        def to_dt(v):
+            if pd.isna(v) or not str(v).strip() or str(v).lower() in ['nan', 'nat']: return None
+            try:
+                dt = pd.to_datetime(v)
+                if pd.isna(dt): return None
+                return dt.to_pydatetime()
+            except: return None
+
+        for idx, row in df.iterrows():
+            def gv(k):
+                c_name = resolved_cols.get(k)
+                if not c_name: return ''
+                val = row[c_name]
+                return str(val).strip() if pd.notna(val) else ''
+
+            # System assignment as requested
+            c_id = f"{prefix}{consecutive:010d}"
+            consecutive += 1
             
-            # Simple in-memory de-duplication for current batch
-            if c_id in seen_ids:
-                # If ID exists, maybe append a suffix or skip? 
-                # User error shows duplicate key violation. 
-                # Let's skip duplicates in the file to avoid crashing.
-                print(f"Skipping duplicate ID in import file: {c_id}")
-                continue
+            if c_id in seen_ids: continue
             seen_ids.add(c_id)
 
             records.append({
-                "id": c_id,
-                "serial_number": safe_get(row, 'serial_number'),
-                "reference_number": safe_get(row, 'reference_number'),
-                "client": safe_get(row, 'client') or 'Unknown',
-                "description": safe_get(row, 'description'),
-                "status": safe_get(row, 'status') or 'Activo',
-                "start_date": to_dt(row.get('start_date')),
-                "end_date": to_dt(row.get('end_date')),
-                "po_number": safe_get(row, 'po_number'),
-                "so_number": safe_get(row, 'so_number'),
-                "cisco_support_end_date": to_dt(row.get('cisco_support_end_date')),
-                "cisco_support_start_date": to_dt(row.get('cisco_support_start_date')),
-                "cisco_contract_number": safe_get(row, 'cisco_contract_number'),
-                "city": safe_get(row, 'city'),
-                "address": safe_get(row, 'address'),
-                "project_name": safe_get(row, 'project_name'),
-                "pep": safe_get(row, 'pep'),
-                "country": safe_get(row, 'country') or 'Colombia',
-                "type": safe_get(row, 'type') or 'Other',
-                "device_model": safe_get(row, 'device_model'),
-                "contract_id": safe_get(row, 'contract_id'),
-                "snow_contract": safe_get(row, 'snow_contract')
+                "id": str(c_id),
+                "ci_number": gv('ci_number'),
+                "serial_number": gv('serial_number'),
+                "reference_number": gv('reference_number'),
+                "client": gv('client') or 'Genérico',
+                "description": gv('description'),
+                "status": gv('status') or 'Activo',
+                "start_date": to_dt(row.get(resolved_cols.get('start_date'))) if resolved_cols.get('start_date') else None,
+                "end_date": to_dt(row.get(resolved_cols.get('end_date'))) if resolved_cols.get('end_date') else None,
+                "po_number": gv('po_number'),
+                "so_number": gv('so_number'),
+                "cisco_support_end_date": to_dt(row.get(resolved_cols.get('cisco_support_end'))) if resolved_cols.get('cisco_support_end') else None,
+                "cisco_support_start_date": to_dt(row.get(resolved_cols.get('cisco_support_start'))) if resolved_cols.get('cisco_support_start') else None,
+                "cisco_contract_number": gv('cisco_contract'),
+                "city": gv('city'),
+                "address": gv('address'),
+                "project_name": gv('project_name'),
+                "pep": gv('pep'),
+                "country": gv('country') or 'Colombia',
+                "type": gv('type') or 'Other',
+                "device_model": gv('device_model'),
+                "contract_id": gv('contract_id'),
+                "snow_contract": gv('snow_contract')
             })
-            
+
         if records:
-            chunk_size = 2000
+            chunk_size = 500 # Pequeño para asegurar estabilidad en UPSERT
+            total_upserted = 0
             for i in range(0, len(records), chunk_size):
                 chunk = records[i:i + chunk_size]
-                ids = [r['id'] for r in chunk]
-                db.query(DBConfigurationItem).filter(DBConfigurationItem.id.in_(ids)).delete(synchronize_session=False)
-                db.bulk_insert_mappings(DBConfigurationItem, chunk)
+                for record in chunk:
+                    db.execute(text("""
+                        INSERT INTO configuration_items (
+                            id, ci_number, serial_number, reference_number, client, description, status, 
+                            start_date, end_date, po_number, so_number, cisco_support_end_date, 
+                            cisco_support_start_date, cisco_contract_number, city, address, 
+                            project_name, pep, country, type, device_model, contract_id, snow_contract
+                        ) VALUES (
+                            :id, :ci_number, :serial_number, :reference_number, :client, :description, :status, 
+                            :start_date, :end_date, :po_number, :so_number, :cisco_support_end_date, 
+                            :cisco_support_start_date, :cisco_contract_number, :city, :address, 
+                            :project_name, :pep, :country, :type, :device_model, :contract_id, :snow_contract
+                        ) ON CONFLICT (id) DO UPDATE SET
+                            ci_number = EXCLUDED.ci_number,
+                            serial_number = EXCLUDED.serial_number,
+                            reference_number = EXCLUDED.reference_number,
+                            client = EXCLUDED.client,
+                            description = EXCLUDED.description,
+                            status = EXCLUDED.status,
+                            start_date = EXCLUDED.start_date,
+                            end_date = EXCLUDED.end_date,
+                            po_number = EXCLUDED.po_number,
+                            so_number = EXCLUDED.so_number,
+                            cisco_support_end_date = EXCLUDED.cisco_support_end_date,
+                            cisco_support_start_date = EXCLUDED.cisco_support_start_date,
+                            cisco_contract_number = EXCLUDED.cisco_contract_number,
+                            city = EXCLUDED.city,
+                            address = EXCLUDED.address,
+                            project_name = EXCLUDED.project_name,
+                            pep = EXCLUDED.pep,
+                            country = EXCLUDED.country,
+                            type = EXCLUDED.type,
+                            device_model = EXCLUDED.device_model,
+                            contract_id = EXCLUDED.contract_id,
+                            snow_contract = EXCLUDED.snow_contract
+                    """), record)
                 db.commit()
-            return {"message": f"Se importaron {len(records)} CIs.", "count": len(records)}
+                total_upserted += len(chunk)
+                print(f"DEBUG: Upserted {total_upserted} records.")
+
+            return {"message": f"Se procesaron {total_upserted} CIs (Nuevos o Actualizados).", "count": total_upserted}
             
         return {"message": "No se encontraron registros.", "count": 0}
 
     except Exception as e:
         db.rollback()
-        print(f"CMDB IMPORT ERROR: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 @router.post("/imports/catalog")

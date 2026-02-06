@@ -1,37 +1,141 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Cpu, AlertTriangle, Clock, Play, Pause, Square, CheckCircle, Search } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    ArrowLeft, Cpu, AlertTriangle, Play,
+    Pause, CheckCircle, Search, User as UserIcon,
+    ChevronRight, Sparkles, ShieldCheck, Activity,
+    Clock, Timer, UserCheck, Link as LinkIcon,
+    Database, FileText, Bell, Zap
+} from 'lucide-react';
+import { addMinutes, addHours, differenceInSeconds, isPast, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 import useIncidentStore from '../store/useIncidentStore';
-import P7M6Wizard from '../components/incidents/P7M6Wizard';
-import { differenceInMinutes } from 'date-fns';
-
 import useCatalogStore from '../store/useCatalogStore';
+import useCMDBStore from '../store/useCMDBStore';
+import useUserStore from '../store/useUserStore';
+import useContractStore from '../store/useContractStore';
+import useSlaStore from '../store/useSlaStore';
+import { PRIORITY_LEVELS } from '../data/slaData';
+import P7M6Wizard from '../components/incidents/P7M6Wizard';
 
-const IncidentForm = ({ type = 'incident' }) => { // Accept type prop
+// --- SUB-COMPONENT: SLACountdown ---
+const SLACountdown = ({ ticket, priority, slaType, status }) => {
+    const { slas, fetchSlas } = useSlaStore();
+    const [timeLeft, setTimeLeft] = useState({ seconds: 0, expired: false });
+    const [slaInfo, setSlaInfo] = useState(null);
+
+    useEffect(() => {
+        if (slas.length === 0) fetchSlas();
+    }, []);
+
+    useEffect(() => {
+        // Find SLA Rules based on Contract or Defaults
+        let rule = slas.find(s => s.id === slaType) || slas[0]; // Default to Low
+        if (!slaType && slas.length > 0) {
+            // Priority based fallback if contract doesn't specify
+            if (priority === 'P1') rule = slas.find(s => s.id === 'Alto');
+            else if (priority === 'P2') rule = slas.find(s => s.id === 'Medio');
+            else rule = slas.find(s => s.id === 'Bajo');
+        }
+        setSlaInfo(rule || slas[0]);
+    }, [priority, slaType, slas]);
+
+    useEffect(() => {
+        if (!slaInfo || !ticket) return;
+
+        let targetDate;
+        if (status === 'En Atención') {
+            targetDate = addMinutes(new Date(ticket.attention_start_at), slaInfo.attentionMin);
+        } else if (status === 'En Resolución') {
+            targetDate = addHours(new Date(ticket.resolution_start_at || ticket.created_at), slaInfo.solutionHours);
+        } else {
+            return;
+        }
+
+        const timer = setInterval(() => {
+            const diff = differenceInSeconds(targetDate, new Date());
+            if (diff <= 0) {
+                setTimeLeft({ seconds: 0, expired: true });
+                clearInterval(timer);
+            } else {
+                setTimeLeft({ seconds: diff, expired: false });
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [slaInfo, ticket, status]);
+
+    const formatTime = (totalSeconds) => {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    if (timeLeft.expired) {
+        return (
+            <div className="sla-alert-box bounce-in">
+                <Bell size={16} />
+                <span>SLA VENCIDO</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`sla-status-box ${timeLeft.expired ? 'expired' : (timeLeft.seconds < 300 ? 'critical' : (timeLeft.seconds < 900 ? 'warning' : 'healthy'))}`}>
+            <div className="flex justify-between items-start mb-1">
+                <div className="sla-label">Vencimiento {status === 'En Atención' ? 'Atención' : 'Solución'}</div>
+                <div className="sla-ref-badge">{status === 'En Atención' ? slaInfo.attention : slaInfo.solution}</div>
+            </div>
+            <div className="sla-timer flex items-center gap-3">
+                <Timer size={20} className={timeLeft.seconds < 300 && !timeLeft.expired ? 'animate-pulse text-red-500' : ''} />
+                <span className="font-mono font-black text-2xl tracking-tighter">
+                    {timeLeft.expired ? 'VENCIDO' : formatTime(timeLeft.seconds)}
+                </span>
+            </div>
+            {timeLeft.seconds < 300 && !timeLeft.expired && (
+                <div className="text-[10px] font-black text-red-500 mt-1 uppercase animate-bounce flex items-center gap-1">
+                    <AlertTriangle size={10} /> Alerta de Vencimiento Inminente
+                </div>
+            )}
+        </div>
+    );
+};
+
+const IncidentForm = ({ type = 'incident' }) => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // Incident Store
-    const { incidents: existingTickets, createIncident, startResolution, pauseIncident, resumeIncident, loading } = useIncidentStore();
+    // Stores
+    const { incidents: existingTickets, createIncident, confirmClosure, loading } = useIncidentStore();
+    const { services: catalogServices, fetchCatalog } = useCatalogStore();
+    const { cis: cmdbItems, fetchCIs, fetchCIBySerial } = useCMDBStore();
+    const { users: appUsers, fetchUsers } = useUserStore();
+    const { getContract } = useContractStore();
+    const { slas, fetchSlas } = useSlaStore();
 
-    // Catalog Store (Source of Truth for Dropdowns via State)
-    const { services: catalogServices, incidents: catalogIncidents, requests: catalogRequests } = useCatalogStore();
-
-    // Local State
-    const [isNew, setIsNew] = useState(!id);
-
+    // Derived/URL State
+    const isNew = !id;
+    const [createdTicket, setCreatedTicket] = useState(null);
     const [incident, setIncident] = useState(null);
-    const [creationStep, setCreationStep] = useState(1); // 1 = Service, 2 = Details
-    const [pauseModalOpen, setPauseModalOpen] = useState(false);
-    const [pauseReason, setPauseReason] = useState({ type: 'Vendor', comments: '' });
+    const [creationStep, setCreationStep] = useState(1);
 
-    // Service Selection State
+    // Selected CI Full Object & Linked Data
+    const [selectedCI, setSelectedCI] = useState(null);
+    const [associatedContract, setAssociatedContract] = useState(null);
+
+    // Selection State
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedServiceId, setSelectedServiceId] = useState('');
     const [selectedServiceName, setSelectedServiceName] = useState('');
-    const [selectedScenarioId, setSelectedScenarioId] = useState('');
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [selectedSerial, setSelectedSerial] = useState('');
+    const [assignedEngineer, setAssignedEngineer] = useState('');
+    const [isFetchingCI, setIsFetchingCI] = useState(false);
 
-    // Creation Form State
+    // Form Data State
     const [formData, setFormData] = useState({
         title: '',
         client: 'General',
@@ -41,61 +145,118 @@ const IncidentForm = ({ type = 'incident' }) => { // Accept type prop
         vendor_case_id: '',
         service_category: '',
         service_name: '',
-        scenario_id: '',
-        scenario_name: ''
+        requester_name: '',
+        serial_number: '',
+        assigned_engineer: ''
     });
 
     useEffect(() => {
         setFormData(prev => ({ ...prev, type: type }));
-    }, [type]);
+        if (isNew) {
+            fetchCIs(); // For the datalist
+            fetchUsers();
+            fetchCatalog();
+            fetchSlas();
+            setCreatedTicket(null); // Reset success state when coming back to "new"
+        }
+    }, [type, isNew]);
+
+    // RESET SUCCESS STATE WHEN NAVIGATING TO A SPECIFIC ID
+    useEffect(() => {
+        if (id) {
+            setCreatedTicket(null);
+        }
+    }, [id]);
 
     useEffect(() => {
-        if (!isNew) {
-            const found = existingTickets.find(i => i.id === id);
+        const loadIncident = async () => {
+            if (isNew) {
+                setIncident(null);
+                return;
+            }
+
+            // 1. Try to find in store
+            let found = existingTickets.find(i => i.id === id);
+
+            if (!found) {
+                const { fetchIncidents } = useIncidentStore.getState();
+                await fetchIncidents();
+                // After fetch, existingTickets will change and trigger re-effect
+                // But for immediate response in this async call:
+                const updatedTickets = useIncidentStore.getState().incidents;
+                found = updatedTickets.find(i => i.id === id);
+            }
+
             if (found) {
                 setIncident(found);
+                if (found.serial_number && !selectedCI) {
+                    fetchCIBySerial(found.serial_number).then(ci => {
+                        if (ci) {
+                            setSelectedCI(ci);
+                            if (ci.contractId) getContract(ci.contractId).then(setAssociatedContract);
+                        }
+                    });
+                }
+            }
+        };
+
+        loadIncident();
+    }, [id, isNew, existingTickets.length]);
+
+    // Proactive Serial Logic: Fetch metadata when serial changes and matches a known item
+    useEffect(() => {
+        const exactMatch = cmdbItems.find(c => c.serialNumber === selectedSerial);
+        if (exactMatch) {
+            handleSerialFetch(selectedSerial);
+        }
+    }, [selectedSerial, cmdbItems]);
+
+    const handleSerialFetch = async (serial) => {
+        if (!serial) return;
+        setIsFetchingCI(true);
+        const ci = await fetchCIBySerial(serial);
+        if (ci) {
+            setSelectedCI(ci);
+            setFormData(prev => ({ ...prev, client: ci.client }));
+            if (ci.contractId) {
+                const contract = await getContract(ci.contractId);
+                setAssociatedContract(contract);
             }
         }
-    }, [id, isNew, existingTickets]);
+        setIsFetchingCI(false);
+    };
 
-    // Derived Data for Selectors
+    const handleSerialBlur = () => {
+        if (selectedSerial && (!selectedCI || selectedCI.serialNumber !== selectedSerial)) {
+            handleSerialFetch(selectedSerial);
+        }
+    };
+
+    // Derived Data
     const categories = [...new Set(catalogServices.map(s => s.category))];
     const servicesByCategory = selectedCategory ? catalogServices.filter(s => s.category === selectedCategory) : [];
 
-    const availableScenarios = selectedServiceId
-        ? (type === 'request' ? catalogRequests : catalogIncidents).filter(s => s.serviceId === selectedServiceId)
-        : [];
-
-    const handleCategoryChange = (e) => {
-        const cat = e.target.value;
-        setSelectedCategory(cat);
-        setSelectedServiceId('');
-        setSelectedServiceName('');
-        setSelectedScenarioId('');
-    };
-
-    const handleServiceChange = (e) => {
-        const svcId = e.target.value;
-        setSelectedServiceId(svcId);
-        const svc = catalogServices.find(s => s.id === svcId);
-        setSelectedServiceName(svc ? svc.name : '');
-        setSelectedScenarioId(''); // Reset scenario
+    const getEstablishPriority = (category, type) => {
+        if (type === 'request') return 'P3';
+        if (category === 'Conectividad y Red') return 'P1';
+        if (category === 'Seguridad') return 'P2';
+        return 'P3';
     };
 
     const handleContinue = () => {
-        // Enforce Scenario Selection
-        if (selectedCategory && selectedServiceId && selectedScenarioId) {
-            const scenario = (type === 'request' ? catalogRequests : catalogIncidents).find(s => s.id === selectedScenarioId);
+        if (selectedCategory && selectedServiceId && selectedUserId && selectedSerial) {
+            const user = appUsers.find(u => u.id === parseInt(selectedUserId));
+            const priority = getEstablishPriority(selectedCategory, type);
 
             setFormData(prev => ({
                 ...prev,
                 service_category: selectedCategory,
                 service_name: selectedServiceName,
-                scenario_id: selectedScenarioId,
-                scenario_name: scenario ? scenario.name : '',
-                // Auto-fill priority/time if available from scenario
-                priority: scenario?.priority || prev.priority,
-                title: scenario ? scenario.name : prev.title, // Pre-fill title with scenario name
+                requester_name: user ? user.full_name : 'Usuario Desconocido',
+                serial_number: selectedSerial,
+                priority: priority,
+                title: `${selectedServiceName} - SN: ${selectedSerial}`,
+                description: `Apertura de caso ${type}.\nUsuario: ${user?.full_name}\nSerial: ${selectedSerial}`
             }));
             setCreationStep(2);
         }
@@ -104,470 +265,359 @@ const IncidentForm = ({ type = 'incident' }) => { // Accept type prop
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
-            await createIncident(formData);
-            navigate(type === 'request' ? '/requests' : '/incidents');
-        } catch (e) { alert(e.message); }
+            // Ensuring all required fields are present for the backend schema
+            const payload = {
+                ...formData,
+                assigned_engineer: assignedEngineer,
+                client: selectedCI?.client || 'General',
+                type: type
+            };
+            const res = await createIncident(payload);
+            setCreatedTicket(res);
+        } catch (e) {
+            console.error("Creation failed", e);
+            alert(`Error al crear el ticket: ${e.message}. Verifique campos obligatorios.`);
+        }
     };
 
-    // ... rest of handlers (resolution/pause) ...
-    const handleStartResolution = async () => {
-        await startResolution(incident.id);
+    const handleConfirmClosure = async () => {
+        if (window.confirm("¿Confirmar resolución del incidente?")) {
+            await confirmClosure(incident.id);
+        }
     };
 
-    const handlePause = async () => {
-        await pauseIncident(incident.id, pauseReason.type, pauseReason.comments);
-        setPauseModalOpen(false);
-    };
+    // --- VIEW: SUMMARY SUCCESS ---
+    if (createdTicket) {
+        return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center p-20">
+                <div className="bg-white rounded-3xl p-12 shadow-2xl text-center max-w-lg">
+                    <CheckCircle size={80} className="text-primary mx-auto mb-6" />
+                    <h1 className="text-3xl font-black mb-2">¡Caso Abierto!</h1>
+                    <p className="text-slate-500 mb-8">Identificador del sistema: <span className="font-mono font-bold text-slate-800">{createdTicket.id}</span></p>
+                    <div className="flex gap-4">
+                        <button className="flex-1 btn-lite" onClick={() => { setCreatedTicket(null); navigate(type === 'request' ? '/requests' : '/incidents'); }}>Volver</button>
+                        <button className="flex-1 btn-primary-lite" onClick={() => {
+                            const targetId = createdTicket.id;
+                            setCreatedTicket(null);
+                            navigate(type === 'request' ? `/requests/${targetId}` : `/incidents/${targetId}`);
+                        }}>Gestionar Ahora</button>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
 
-    const handleResume = async () => {
-        await resumeIncident(incident.id);
-    };
-
-    if (loading && !incident && !isNew) return <div className="p-8 text-center text-white">Cargando...</div>;
-
-    // --- VIEW: NEW INCIDENT/REQUEST ---
+    // --- VIEW: NEW FORM (VERTICAL DESIGN) ---
     if (isNew) {
         return (
-            <div className="incident-form-page">
-                <header className="form-header">
-                    <button className="back-btn" onClick={() => navigate(type === 'request' ? '/requests' : '/incidents')}>
-                        <ArrowLeft size={20} /> Volver
-                    </button>
-                    <h1>{type === 'request' ? 'Nuevo Requerimiento' : 'Nuevo Incidente'}</h1>
+            <div className="vertical-creation-page">
+                <header className="page-head flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-6">
+                        <button onClick={() => navigate(-1)} className="btn-icon"><ArrowLeft size={20} /></button>
+                        <div>
+                            <h1 className="text-3xl font-black text-slate-900 leading-none">{type === 'request' ? 'Requerimiento' : 'Incidente'}</h1>
+                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">Apertura Protocolar IKUSI</p>
+                        </div>
+                    </div>
+                    <div className="creation-step-indicator">
+                        <div className={`step-dot ${creationStep >= 1 ? 'active' : ''}`}>1</div>
+                        <div className="line"></div>
+                        <div className={`step-dot ${creationStep >= 2 ? 'active' : ''}`}>2</div>
+                    </div>
                 </header>
 
-                <div className="glass-panel p-6">
-                    {creationStep === 1 ? (
-                        <div className="service-selection-step">
-                            <h2 className="text-xl mb-6 border-b border-white/10 pb-4">Paso 1: Clasificación del {type === 'request' ? 'Requerimiento' : 'Incidente'}</h2>
+                <div className="form-layout flex gap-12">
+                    {/* Left Column: Form Fields */}
+                    <div className="form-column flex-1 space-y-8">
+                        <AnimatePresence mode="wait">
+                            {creationStep === 1 ? (
+                                <motion.div key="s1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+                                    <div className="input-vertical">
+                                        <label><UserIcon size={14} /> Usuario Solicitante</label>
+                                        <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}>
+                                            <option value="">-- Seleccionar --</option>
+                                            {appUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="input-vertical">
+                                        <label><Cpu size={14} /> Serial del Equipo (CMDB)</label>
+                                        <div className="relative">
+                                            <input
+                                                list="cmdb-list"
+                                                value={selectedSerial}
+                                                onChange={e => setSelectedSerial(e.target.value)}
+                                                onBlur={handleSerialBlur}
+                                                placeholder="Ej: SN123456"
+                                            />
+                                            {isFetchingCI && <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin"><Activity size={16} /></div>}
+                                            <datalist id="cmdb-list">
+                                                {cmdbItems.map(ci => (
+                                                    <option key={ci.id} value={ci.serialNumber}>
+                                                        {ci.ciNumber ? `${ci.serialNumber} [${ci.ciNumber}]` : ci.serialNumber} - {ci.description || 'Sin descripción'}
+                                                    </option>
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="input-vertical">
+                                            <label><ShieldCheck size={14} /> Categoría</label>
+                                            <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+                                                <option value="">-- Seleccione --</option>
+                                                {categories.map((c, i) => <option key={i} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="input-vertical">
+                                            <label><Activity size={14} /> Servicio</label>
+                                            <select
+                                                value={selectedServiceId}
+                                                onChange={e => {
+                                                    setSelectedServiceId(e.target.value);
+                                                    const s = catalogServices.find(x => x.id === e.target.value);
+                                                    setSelectedServiceName(s?.name || '');
+                                                }}
+                                                disabled={!selectedCategory}
+                                            >
+                                                <option value="">-- Seleccione --</option>
+                                                {servicesByCategory.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button className="btn-primary-action w-full py-4 text-lg font-black mt-4" onClick={handleContinue} disabled={!selectedServiceId || !selectedUserId || !selectedSerial}>
+                                        Continuar Detalles <ChevronRight size={20} />
+                                    </button>
+                                </motion.div>
+                            ) : (
+                                <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                                    <div className="input-vertical">
+                                        <label><UserCheck size={14} /> Ingeniero Especialista Asignado</label>
+                                        <select value={assignedEngineer} onChange={e => setAssignedEngineer(e.target.value)} required>
+                                            <option value="">-- Seleccione Especialista --</option>
+                                            {appUsers.map(u => <option key={u.id} value={u.full_name}>{u.full_name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="input-vertical">
+                                        <label>Título del Incidente</label>
+                                        <input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} required />
+                                    </div>
+                                    <div className="input-vertical">
+                                        <label>Prioridad de Atención (ANS)</label>
+                                        <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })}>
+                                            {PRIORITY_LEVELS.map(p => <option key={p.id} value={p.id}>{p.id} - {p.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="input-vertical">
+                                        <label>Descripción y Observaciones</label>
+                                        <textarea rows={6} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} required />
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <button className="btn-lite flex-1" onClick={() => setCreationStep(1)}>Atrás</button>
+                                        <button className="btn-primary-action flex-[2] font-black" onClick={handleCreate}>APERTURAR CASO OFICIAL</button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
-                            <div className="selection-container" style={{ maxWidth: '600px' }}>
-                                <div className="form-group mb-4">
-                                    <label className="text-primary font-bold">1. Categoría del Servicio</label>
-                                    <select
-                                        value={selectedCategory}
-                                        onChange={handleCategoryChange}
-                                        className="w-full"
-                                    >
-                                        <option value="">-- Seleccione una Categoría --</option>
-                                        {categories.map((cat, idx) => (
-                                            <option key={idx} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
+                    {/* Right Column: CI & Contract Metadata */}
+                    <div className="metadata-column w-80 space-y-6">
+                        <div className="meta-section">
+                            <h3 className="meta-title"><Database size={14} /> Información del CI</h3>
+                            {selectedCI ? (
+                                <div className="meta-content">
+                                    <div className="meta-row"><label>Modelo</label><span>{selectedCI.deviceModel || 'N/A'}</span></div>
+                                    <div className="meta-row"><label>Cliente</label><span>{selectedCI.client}</span></div>
+                                    <div className="meta-row"><label>Referencia</label><span>{selectedCI.referenceNumber || 'N/A'}</span></div>
                                 </div>
-
-                                <div className="form-group mb-4">
-                                    <label className="text-primary font-bold">2. Servicio Afectado/Solicitado</label>
-                                    <select
-                                        value={selectedServiceId}
-                                        onChange={handleServiceChange}
-                                        disabled={!selectedCategory}
-                                        className="w-full"
-                                    >
-                                        <option value="">-- Seleccione un Servicio --</option>
-                                        {servicesByCategory.map((svc) => (
-                                            <option key={svc.id} value={svc.id}>{svc.name} ({svc.id})</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="form-group mb-6">
-                                    <label className="text-primary font-bold">3. Escenario de {type === 'request' ? 'Requerimiento' : 'Falla'}</label>
-                                    <select
-                                        value={selectedScenarioId}
-                                        onChange={(e) => setSelectedScenarioId(e.target.value)}
-                                        disabled={!selectedServiceId}
-                                        className="w-full"
-                                    >
-                                        <option value="">-- Seleccione el Escenario --</option>
-                                        {availableScenarios.map((sc) => (
-                                            <option key={sc.id} value={sc.id}>
-                                                {sc.name} ({sc.id})
-                                                {sc.priority ? ` - ${sc.priority}` : ''}
-                                                {sc.time ? ` - ${sc.time}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {availableScenarios.length === 0 && selectedServiceId && (
-                                        <p className="text-muted-sm mt-2">No hay escenarios predefinidos para este servicio.</p>
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={handleContinue}
-                                    disabled={!selectedScenarioId}
-                                    className={`btn-primary w-full py-3 justify-center mb-6 ${!selectedScenarioId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    Continuar al Formulario
-                                </button>
-                            </div>
+                            ) : (
+                                <div className="meta-placeholder">Seleccione un serial para ver información...</div>
+                            )}
                         </div>
-                    ) : (
-                        <form onSubmit={handleCreate} className="creation-form">
-                            <div className="selected-service-banner mb-6">
-                                <span className="label">Clasificación:</span>
-                                <div className="value" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <span>{formData.service_name}</span>
-                                    <small style={{ opacity: 0.8 }}>{formData.scenario_name}</small>
-                                </div>
-                                <button type="button" className="change-btn" onClick={() => setCreationStep(1)}>Cambiar</button>
-                            </div>
 
-                            <div className="form-group mb-4">
-                                <label>Título</label>
-                                <input
-                                    value={formData.title}
-                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                    required
-                                    placeholder={type === 'request' ? "Resumen del requerimiento" : "Resumen de la falla"}
-                                />
-                            </div>
-                            <div className="grid-2 mb-4">
-                                <div className="form-group">
-                                    <label>Cliente</label>
-                                    <select value={formData.client} onChange={e => setFormData({ ...formData, client: e.target.value })}>
-                                        <option value="General">General</option>
-                                        <option value="Coca-Cola">Coca-Cola</option>
-                                        <option value="Heineken">Heineken</option>
-                                    </select>
+                        <div className="meta-section">
+                            <h3 className="meta-title"><FileText size={14} /> Contratos Asociados</h3>
+                            {associatedContract ? (
+                                <div className="meta-content">
+                                    <div className="meta-row"><label>Contrato Snow</label><span>{associatedContract.snowContract || 'N/A'}</span></div>
+                                    <div className="meta-row"><label>Número Contrato</label><span>{associatedContract.id}</span></div>
+                                    <div className="meta-row"><label>Cisco Contract</label><span>{selectedCI?.ciscoContractNumber || 'N/A'}</span></div>
+                                    <div className="meta-row"><label>Folio</label><span>{associatedContract.folio || 'N/A'}</span></div>
                                 </div>
-                                <div className="form-group">
-                                    <label>Prioridad</label>
-                                    <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })}>
-                                        <option value="P3">P3 - Bajo</option>
-                                        <option value="P2">P2 - Crítico</option>
-                                        <option value="P1">P1 - Emergencia</option>
-                                    </select>
+                            ) : (
+                                <div className="meta-placeholder">Sin contrato detectado...</div>
+                            )}
+                        </div>
+
+                        <div className="meta-section premium">
+                            <h3 className="meta-title"><Zap size={14} /> Nivel de ANS (SLA)</h3>
+                            {associatedContract ? (
+                                <div className="meta-content">
+                                    <div className="sla-badge">{associatedContract.slaType || 'Bajo'}</div>
+                                    <div className="meta-row mt-2"><label>Tiempo Atención</label><span>{slas.find(s => s.id === associatedContract.slaType)?.attention_display || '60 min'}</span></div>
+                                    <div className="meta-row"><label>Tiempo Solución</label><span>{slas.find(s => s.id === associatedContract.slaType)?.solution_display || '24 hrs'}</span></div>
                                 </div>
-                            </div>
-                            <div className="form-group mb-4">
-                                <label>Número de Caso Fabricante (Vendor Case ID)</label>
-                                <input
-                                    value={formData.vendor_case_id || ''}
-                                    onChange={e => setFormData({ ...formData, vendor_case_id: e.target.value })}
-                                    placeholder="Ej: SR 67890 (Opcional)"
-                                />
-                            </div>
-                            <div className="form-group mb-6">
-                                <label>Descripción Detallada</label>
-                                <textarea
-                                    rows={5}
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <button type="submit" className="btn-primary full-width-btn">
-                                {type === 'request' ? 'Crear Requerimiento' : 'Crear Incidente'}
-                            </button>
-                        </form>
-                    )}
+                            ) : (
+                                <div className="meta-placeholder">Basado en prioridad por defecto...</div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-                <style>{`
-                    .incident-form-page { max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
-                    .form-header { display: flex; gap: 16px; margin-bottom: 24px; align-items: center; }
-                    .form-header h1 { font-size: 1.6rem; color: #020617; font-weight: 800; }
-                    .back-btn { background: #fff; border: 1px solid #cbd5e1; color: #1e293b; padding: 8px 16px; border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; box-shadow: var(--shadow-sm); }
-                    .back-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
-                    
-                    .glass-panel { background: #fff; border: 1px solid #cbd5e1; border-top: 4px solid var(--color-primary); border-radius: 12px; padding: 32px; box-shadow: var(--shadow-md); }
-                    
-                    .form-group label { display: block; color: #1e293b; margin-bottom: 8px; font-size: 0.95rem; font-weight: 700; }
-                    .form-group input, .form-group textarea, .form-group select { 
-                        width: 100%; background: #fff; border: 1px solid #cbd5e1; 
-                        padding: 12px; color: #0f172a; border-radius: 6px; outline: none; font-size: 1rem; transition: all 0.2s;
-                    }
-                    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-glow); }
-                    
-                    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                    .mb-4 { margin-bottom: 20px; } .mb-6 { margin-bottom: 32px; }
-                    .text-xl { font-size: 1.4rem; font-weight: 800; color: #020617; }
-                    .text-primary { color: var(--color-primary); }
-                    .font-bold { font-weight: 800; }
-                    
-                    .service-selection-step h2 { border-bottom: 2px solid #f1f5f9; }
 
-                    .service-btn {
-                        width: 100%; text-align: left; padding: 14px;
-                        background: #f8fafc; border: 1px solid #e2e8f0;
-                        color: #1e293b; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 600;
+                <style>{`
+                    .vertical-creation-page { max-width: 1200px; margin: 0 auto; padding: 40px; }
+                    .step-dot { width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
+                    .step-dot.active { background: #008F39; color: #fff; box-shadow: 0 0 10px rgba(0,143,57,0.3); }
+                    .creation-step-indicator { display: flex; align-items: center; gap: 10px; }
+                    .creation-step-indicator .line { height: 2px; width: 30px; background: #f1f5f9; }
+
+                    .input-vertical { display: flex; flex-direction: column; gap: 8px; }
+                    .input-vertical label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+                    .input-vertical input, .input-vertical select, .input-vertical textarea { 
+                        background: #fff; border: 1.5px solid #f1f5f9; border-radius: 12px; padding: 14px 18px; font-size: 1rem; color: #1e293b; transition: all 0.2s;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
                     }
-                    .service-btn:hover { background: #ecfdf5; border-color: var(--color-primary); color: var(--color-primary-dim); }
-                    
-                    .selected-service-banner {
-                        display: flex; align-items: center; gap: 12px;
-                        background: #ecfdf5; border: 1px solid var(--color-primary);
-                        padding: 16px; border-radius: 8px;
+                    .input-vertical input:focus, .input-vertical select:focus, .input-vertical textarea:focus { 
+                        outline: none; border-color: #008F39; box-shadow: 0 0 10px rgba(0,143,57,0.1); 
                     }
-                    .selected-service-banner .label { font-weight: 800; color: var(--color-primary-dim); text-transform: uppercase; font-size: 0.75rem; }
-                    .selected-service-banner .value { color: #065f46; font-weight: 700; flex: 1; }
-                    .change-btn { background: #fff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; color: #475569; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
-                    .change-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+
+                    .meta-section { background: #fff; border-radius: 16px; border: 1px solid #f1f5f9; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
+                    .meta-section.premium { border-left: 4px solid #008F39; }
+                    .meta-title { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+                    .meta-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f8fafc; }
+                    .meta-row label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+                    .meta-row span { font-size: 11px; color: #1e293b; font-weight: 700; }
+                    .meta-placeholder { font-size: 11px; color: #cbd5e1; font-style: italic; text-align: center; padding: 10px; }
                     
-                    .full-width-btn { width: 100%; justify-content: center; padding: 14px; font-size: 1rem; }
+                    .sla-badge { background: #008F39; color: #fff; display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+                    .btn-primary-action { background: #008F39; color: #fff; border: none; padding: 16px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                    .btn-primary-action:hover { transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(0,143,57,0.3); }
+                    .btn-icon { background: #fff; border: 1.5px solid #f1f5f9; border-radius: 10px; padding: 8px; cursor: pointer; color: #64748b; }
                 `}</style>
             </div>
         );
     }
 
-    // --- VIEW: EXISTING INCIDENT (Resolución) ---
-    if (!incident) return <div className="p-8 text-center text-white">Incidente no encontrado</div>;
+    // --- VIEW: MANAGEMENT DASHBOARD ---
+    if (!incident) {
+        return (
+            <div className="flex flex-col items-center justify-center p-20 opacity-50">
+                <Activity className="animate-spin text-primary mb-4" size={40} />
+                <p className="font-bold text-slate-400">Cargando Entorno de Gestión...</p>
+            </div>
+        );
+    }
 
+    const currentStep = incident.current_step;
+    const isAttention = incident.status === 'En Atención';
     const isResolution = incident.status === 'En Resolución';
-    const isPaused = incident.status === 'Pausado';
+    const isPendingConfirmation = incident.status === 'Pendiente Confirmación';
     const isClosed = incident.status === 'Cerrado';
 
     return (
-        <div className="resolution-page">
-            <header className="res-header">
-                <button className="back-btn" onClick={() => navigate('/incidents')}>
-                    <ArrowLeft size={20} />
-                </button>
-                <div className="header-info">
-                    <h1>{incident.id}: {incident.title}</h1>
-                    <span className={`status-badge ${incident.status.toLowerCase().replace(' ', '-')}`}>
-                        {incident.status}
-                    </span>
+        <div className="management-dashboard px-10 py-10 max-w-7xl mx-auto">
+            <header className="dash-head flex justify-between items-end mb-10 border-b border-slate-100 pb-10">
+                <div className="flex flex-col gap-4">
+                    <button onClick={() => navigate('/incidents')} className="text-xs font-bold text-slate-400 flex items-center gap-2 hover:text-primary transition-colors">
+                        <ArrowLeft size={14} /> VOLVER A LA LISTA
+                    </button>
+                    <div>
+                        <h1 className="text-4xl font-black text-slate-900 leading-none">{incident.id}</h1>
+                        <p className="text-slate-500 font-bold mt-2">{incident.title}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <span className={`status-pill ${incident.status.toLowerCase().replace(' ', '-')}`}>{incident.status}</span>
+                        <span className="meta-pill"><UserIcon size={12} /> {incident.assigned_engineer}</span>
+                        <span className="meta-pill"><LinkIcon size={12} /> {incident.serial_number}</span>
+                    </div>
                 </div>
 
-                {/* Actions Bar */}
-                <div className="header-actions">
-                    {incident.status === 'Abierto' && (
-                        <button className="btn-primary" onClick={handleStartResolution}>
-                            <Play size={16} /> Iniciar Resolución
-                        </button>
-                    )}
-                    {(isResolution) && (
-                        <button className="btn-secondary warning" onClick={() => setPauseModalOpen(true)}>
-                            <Pause size={16} /> Pausar Reloj
-                        </button>
-                    )}
-                    {isPaused && (
-                        <button className="btn-primary flick-animate" onClick={handleResume}>
-                            <Play size={16} /> Reanudar Reloj
-                        </button>
-                    )}
-                    {isClosed && (
-                        <div className="closed-info">
-                            <CheckCircle size={16} color="#2ed573" /> Incidente Cerrado
-                        </div>
-                    )}
+                <div className="dash-sla-clocks flex gap-6">
+                    <SLACountdown
+                        ticket={incident}
+                        priority={incident.priority}
+                        slaType={associatedContract?.slaType}
+                        status={incident.status}
+                    />
                 </div>
             </header>
 
-            {/* Main Content Area */}
-            <div className="res-container">
-                {incident.status === 'Abierto' && (
-                    <div className="waiting-start">
-                        <AlertTriangle size={48} color="#ffa502" />
-                        <h2>Incidente en Espera de Atención</h2>
-                        <p>El tiempo de atención está corriendo desde {new Date(incident.created_at).toLocaleTimeString()}.</p>
-                        <p>Haga clic en <strong>Iniciar Resolución</strong> para comenzar el protocolo P7M6.</p>
+            <div className="workflow-grid flex gap-10">
+                <div className="workflow-steps flex-1">
+                    <P7M6Wizard incident={incident} />
+                </div>
+
+                {/* Vertical Metadata Sidebar */}
+                <div className="metadata-side w-80 space-y-6">
+                    <div className="side-card">
+                        <h4 className="card-title">Detalles del Contrato</h4>
+                        {associatedContract ? (
+                            <div className="space-y-3">
+                                <div className="side-row"><label>SLA Nivel</label><span>{associatedContract.slaType}</span></div>
+                                <div className="side-row"><label>Nro. Contrato</label><span>{associatedContract.id}</span></div>
+                                <div className="side-row"><label>Contrato SNOW</label><span>{associatedContract.snowContract}</span></div>
+                                <div className="side-row"><label>Folio Ikusi</label><span>{associatedContract.folio}</span></div>
+                                <div className="side-row"><label>Servicio</label><span>{associatedContract.servicePackage}</span></div>
+                            </div>
+                        ) : <div className="text-[10px] text-slate-400">Cargando información comercial...</div>}
                     </div>
-                )}
 
-                {(isResolution || isPaused) && (
-                    <div className="wizard-wrapper" style={{ opacity: isPaused ? 0.5 : 1, pointerEvents: isPaused ? 'none' : 'auto' }}>
-                        <P7M6Wizard incident={incident} />
-                    </div>
-                )}
-
-                {isClosed && (
-                    <P7M6Report incident={incident} />
-                )}
-
-                {isPaused && (
-                    <div className="pause-overlay">
-                        <div className="pause-message">
-                            <Clock size={48} className="pulse" />
-                            <h2>RELOJ PAUSADO</h2>
-                            <p>El SLA se ha detenido temporalmente por: <strong>{incident.pauses?.slice(-1)[0]?.reason || 'Espera'}</strong></p>
-                            <button className="btn-primary large" onClick={handleResume}>REANUDAR AHORA</button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Pause Modal */}
-            {pauseModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content glass-panel">
-                        <h3>Pausar Reloj (Detener SLA)</h3>
-                        <p className="text-muted">Solo permitido por motivos válidos documentados.</p>
-
-                        <div className="form-group mt-4">
-                            <label>Motivo</label>
-                            <select value={pauseReason.type} onChange={e => setPauseReason({ ...pauseReason, type: e.target.value })}>
-                                <option value="Vendor">Escalamiento a Fabricante (Vendor)</option>
-                                <option value="Client">Pendiente Cliente (Feedback)</option>
-                            </select>
-                        </div>
-                        <div className="form-group mt-2">
-                            <label>Comentarios Justificativos</label>
-                            <textarea
-                                value={pauseReason.comments}
-                                onChange={e => setPauseReason({ ...pauseReason, comments: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="modal-actions">
-                            <button onClick={() => setPauseModalOpen(false)} className="btn-ghost" type="button">Cancelar</button>
-                            <button onClick={handlePause} className="btn-primary warning" type="button">Confirmar Pausa</button>
-                        </div>
+                    <div className="side-card">
+                        <h4 className="card-title">Cisco Insight</h4>
+                        {selectedCI ? (
+                            <div className="space-y-3">
+                                <div className="side-row"><label>Contract #</label><span>{selectedCI.ciscoContractNumber || 'NO ENCONTRADO'}</span></div>
+                                <div className="side-row"><label>Fin Soporte</label><span>{selectedCI.ciscoSupportEndDate || 'N/A'}</span></div>
+                                <div className="side-row"><label>Dispositivo</label><span>{selectedCI.deviceModel}</span></div>
+                            </div>
+                        ) : <div className="text-[10px] text-slate-400">Consultando bases Cisco...</div>}
                     </div>
                 </div>
-            )}
+            </div>
+
+            <AnimatePresence>
+                {isPendingConfirmation && (
+                    <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-10 left-10 right-10 bg-slate-900 border-t-4 border-primary p-8 rounded-3xl shadow-2xl text-white flex justify-between items-center z-50">
+                        <div>
+                            <h3 className="text-xl font-black">Validación Final Requerida</h3>
+                            <p className="text-slate-400 font-medium text-sm">El protocolo P7M6 ha finalizado. Confirme con el cliente la resolución.</p>
+                        </div>
+                        <button className="btn-primary-lite py-4 px-10 text-lg shadow-xl" onClick={handleConfirmClosure}>CERRAR CASO DEFINITIVAMENTE</button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <style>{`
-                .resolution-page { max-width: 1200px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; padding-bottom: 40px; }
-                .res-header { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; padding: 24px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: var(--shadow-sm); }
-                .header-info h1 { margin: 0; font-size: 1.4rem; color: #020617; font-weight: 800; }
-                .status-badge { padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; font-weight: 800; border: 1px solid transparent; letter-spacing: 0.05em; }
+                .status-pill { padding: 4px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #f1f5f9; color: #475569; }
+                .status-pill.en-atención { background: #fff5eb; color: #ea580c; border: 1px solid #fdba74; }
+                .status-pill.en-resolución { background: #008F39; color: #fff; }
+                .status-pill.pendiente-confirmación { background: #0f172a; color: #fff; }
                 
-                .status-badge.abierto { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
-                .status-badge.en-resolución { background: #dbeafe; color: #2563eb; border-color: #bfdbfe; }
-                .status-badge.pausado { background: #fef3c7; color: #d97706; border-color: #fde68a; }
-                .status-badge.cerrado { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
-                
-                .header-actions { margin-left: auto; display: flex; gap: 12px; align-items: center; }
-                
-                .waiting-start { text-align: center; padding: 80px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; margin-top: 40px; box-shadow: var(--shadow-md); }
-                .waiting-start h2 { margin-top: 24px; color: #020617; font-weight: 800; }
-                .waiting-start p { color: #475569; font-size: 1.1rem; }
-                
-                .res-container { position: relative; min-height: 600px; }
-                
-                .pause-overlay {
-                    position: absolute; inset: 0;
-                    background: rgba(255, 255, 255, 0.9);
-                    backdrop-filter: blur(8px);
-                    display: flex; align-items: center; justify-content: center;
-                    z-index: 50;
-                    border-radius: 12px;
-                    border: 2px dashed #f59e0b;
-                }
-                .pause-message { text-align: center; color: #d97706; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-                .pulse { animation: pulse 2s infinite; color: #f59e0b; }
-                @keyframes pulse { 0% { opacity: 0.6; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.6; transform: scale(0.95); } }
-                
-                .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
-                .modal-content { width: 450px; background: #fff; border-radius: 12px; padding: 32px; box-shadow: var(--shadow-lg); border-top: 6px solid #f59e0b; }
-                .modal-content h3 { font-weight: 800; color: #020617; font-size: 1.25rem; }
-                
-                .btn-secondary.warning { color: #d97706; border-color: #f59e0b; background: #fffbeb; font-weight: 700; }
-                .btn-secondary.warning:hover { background: #fef3c7; border-color: #d97706; }
-                
-                .flick-animate { animation: flicker 2s infinite alternate; box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
-                @keyframes flicker { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
-                
-                .closed-info { display: flex; align-items: center; gap: 10px; color: #059669; font-weight: 800; padding: 12px 24px; background: #ecfdf5; border-radius: 8px; border: 1px solid #10b981; }
+                .meta-pill { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: #64748b; background: #f8fafc; padding: 4px 10px; border-radius: 8px; border: 1px solid #f1f5f9; }
 
-                .mt-4 { margin-top: 20px; } .mt-2 { margin-top: 10px; }
-                .modal-actions { display: flex; justify-content: flex-end; gap: 16px; margin-top: 32px; }
+                .dash-sla-clocks { display: flex; gap: 20px; }
+                .sla-status-box { background: #fff; border: 1px solid #f1f5f9; padding: 16px 24px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); min-width: 220px; border-bottom: 4px solid #e2e8f0; }
+                .sla-status-box.healthy { border-bottom-color: #008F39; }
+                .sla-status-box.warning { border-bottom-color: #f59e0b; }
+                .sla-status-box.critical { border-bottom-color: #dc2626; background: #fff1f2; animation: pulse-critical 1.5s infinite; }
+                .sla-status-box.expired { border-bottom-color: #000; background: #000; color: #fff; }
+                .sla-status-box.expired .sla-timer, .sla-status-box.expired .sla-label { color: #fff; }
+                
+                .sla-ref-badge { background: #f1f5f9; color: #64748b; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+                
+                .sla-label { font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; }
+                .sla-timer { font-size: 1.5rem; color: #0f172a; margin-top: 4px; }
 
-                /* Report Styles - High Contrast Clean */
-                .p7m6-report {
-                    background: #fff;
-                    color: #020617;
-                    padding: 60px;
-                    border-radius: 8px;
-                    font-family: 'Inter', sans-serif;
-                    box-shadow: var(--shadow-lg);
-                    max-width: 1000px;
-                    margin: 20px auto;
-                    border: 1px solid #cbd5e1;
-                }
-                .report-header {
-                    display: flex;
-                    border: 2px solid #0f172a;
-                    margin-bottom: 32px;
-                }
-                .logo-section { flex: 0 0 220px; border-right: 2px solid #0f172a; padding: 20px; display: flex; align-items: center; justify-content: center; background: #f8fafc; }
-                .logo-placeholder { font-weight: 900; font-size: 28px; color: #009938; display: flex; flex-direction: column; align-items: center; letter-spacing: -0.05em; }
-                .title-section { flex: 1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.4rem; border-right: 2px solid #0f172a; background: #fff; text-align: center; padding: 10px; }
-                .itae-section { flex: 0 0 250px; text-align: center; padding: 15px; font-size: 0.85rem; display: flex; flex-direction: column; justify-content: center; font-weight: 800; background: #0f172a; color: #fff; }
-                
-                .report-meta { border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 40px; }
-                .meta-row { display: flex; border-bottom: 1px solid #e2e8f0; }
-                .meta-row:last-child { border-bottom: none; }
-                .meta-label { flex: 0 0 220px; background: #f1f5f9; padding: 12px 20px; font-weight: 700; font-size: 0.9rem; border-right: 1px solid #e2e8f0; color: #334155; }
-                .meta-value { flex: 1; padding: 12px 20px; font-size: 0.9rem; color: #0f172a; font-weight: 500; }
-                
-                .report-steps { display: flex; flex-direction: column; gap: 32px; }
-                .report-step { border: 1px solid #e2e8f0; padding: 24px; border-radius: 8px; background: #f8fafc; }
-                .report-step h4 { margin: 0 0 16px 0; color: #009938; font-size: 1.1rem; border-bottom: 3px solid #009938; display: inline-block; padding-bottom: 4px; font-weight: 800; }
-                .step-content { white-space: pre-line; font-size: 0.95rem; line-height: 1.6; color: #334155; font-weight: 500; }
+                @keyframes pulse-critical { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+
+                .side-card { background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
+                .card-title { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #f8fafc; padding-bottom: 8px; }
+                .side-row { display: flex; justify-content: space-between; gap: 10px; }
+                .side-row label { font-size: 10px; font-weight: 700; color: #94a3b8; }
+                .side-row span { font-size: 10px; font-weight: 800; color: #1e293b; text-align: right; }
+
+                @keyframes pulse-warning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }
+                @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(5px); } 50% { transform: translateX(-5px); } 75% { transform: translateX(5px); } 100% { transform: translateX(0); } }
             `}</style>
-        </div>
-    );
-};
-
-// P7M6 Report Component
-const P7M6Report = ({ incident }) => {
-    let steps = {};
-    try {
-        steps = JSON.parse(incident.step_data || '{}');
-    } catch (e) { }
-
-    return (
-        <div className="p7m6-report">
-            <div className="report-header">
-                <div className="logo-section">
-                    <div className="logo-placeholder">
-                        <span>IKUSI</span>
-                        <span style={{ fontSize: '12px', color: '#666' }}>velatia</span>
-                    </div>
-                </div>
-                <div className="title-section">
-                    INFORME DE SOPORTE P7M6
-                </div>
-                <div className="itae-section">
-                    ITAE<br />
-                    Ikusi Technical Assistance Expert
-                </div>
-            </div>
-
-            <div className="report-meta">
-                <div className="meta-row">
-                    <div className="meta-label">Fecha de creación:</div>
-                    <div className="meta-value">{new Date(incident.created_at).toLocaleDateString()}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Hora inicio:</div>
-                    <div className="meta-value">{new Date(incident.created_at).toLocaleTimeString()}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Hora finalización:</div>
-                    <div className="meta-value">{incident.closed_at ? new Date(incident.closed_at).toLocaleTimeString() : '-'}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Problema/Actividad:</div>
-                    <div className="meta-value">{incident.description}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Número de Caso Ikusi:</div>
-                    <div className="meta-value">{incident.id}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Número de Caso Fabricante:</div>
-                    <div className="meta-value">{incident.vendor_case_id || 'N/A'}</div>
-                </div>
-                <div className="meta-row">
-                    <div className="meta-label">Cliente:</div>
-                    <div className="meta-value">{incident.client}</div>
-                </div>
-            </div>
-
-            <div className="report-steps">
-                {[1, 2, 3, 4, 5, 6, 7].map(stepNum => (
-                    steps[stepNum] && (
-                        <div key={stepNum} className="report-step">
-                            <h4>Paso {stepNum}</h4>
-                            <div className="step-content">{steps[stepNum]}</div>
-                        </div>
-                    )
-                ))}
-            </div>
         </div>
     );
 };

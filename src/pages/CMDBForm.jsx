@@ -11,6 +11,7 @@ const CMDBForm = () => {
 
     const initialState = {
         id: '',
+        ciNumber: '',
         serialNumber: '',
         referenceNumber: '',
         client: '',
@@ -90,8 +91,8 @@ const CMDBForm = () => {
                     <ArrowLeft size={20} />
                 </button>
                 <div className="header-title-clean">
-                    <h1>{isNew ? 'Nuevo CI' : 'Detalles del CI'}</h1>
-                    <p className="subtitle">{isNew ? 'Registrar nuevo activo' : `Editando: ${id}`}</p>
+                    <h1>{isNew ? 'Nuevo Configuration ITEM' : 'Detalles del Configuration ITEM'}</h1>
+                    <p className="subtitle">{isNew ? 'Registrar nuevo activo' : `ID Sistema: ${formData.id}`}</p>
                 </div>
                 <div className="header-actions-right">
                     <span className={`status-badge-large ${formData.status?.toLowerCase()}`}>
@@ -110,8 +111,18 @@ const CMDBForm = () => {
                     </div>
                     <div className="section-body grid-3">
                         <div className="input-group">
-                            <label>Número CI (ID)</label>
-                            <input name="id" value={formData.id} onChange={handleChange} required disabled={!isNew && !!formData.id} className={!isNew ? "bg-slate-100" : ""} />
+                            <label>Número de Configuration ITEM</label>
+                            <input
+                                name="id"
+                                value={isNew ? 'Auto-asignado XXyyyyyyyyyy' : formData.id}
+                                disabled
+                                className="bg-slate-100 font-mono font-bold text-primary"
+                                placeholder="Asignado por el sistema"
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label>Número de CI</label>
+                            <input name="ciNumber" value={formData.ciNumber} onChange={handleChange} placeholder="Ej: CI-12345" />
                         </div>
                         <div className="input-group">
                             <label>Número Serial</label>

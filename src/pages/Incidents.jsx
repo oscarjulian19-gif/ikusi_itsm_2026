@@ -141,6 +141,8 @@ const Incidents = ({ type = 'incident' }) => {
             <tr>
               {renderHeader('ID', 'id')}
               {renderHeader('Título', 'title')}
+              {renderHeader('Usuario', 'requester_name')}
+              {renderHeader('Serial', 'serial_number')}
               {renderHeader('Prioridad', 'priority')}
               {renderHeader('Estado', 'status')}
               {renderHeader('Cliente', 'client')}
@@ -154,6 +156,8 @@ const Incidents = ({ type = 'incident' }) => {
               <tr key={inc.id} onClick={() => navigate(`${detailRoute}/${inc.id}`)} className="table-row-clean">
                 <td className="col-id-clean">{inc.id}</td>
                 <td className="col-title-clean">{inc.title}</td>
+                <td className="text-muted-sm">{inc.requester_name || '-'}</td>
+                <td className="font-mono text-muted-sm">{inc.serial_number || '-'}</td>
                 <td>
                   <span className={`priority-pill p-${inc.priority ? inc.priority.toLowerCase() : 'p3'}`}>
                     {inc.priority}

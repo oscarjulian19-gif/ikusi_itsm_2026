@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Briefcase, Calendar, User, Shield, Server } from 'lucide-react';
 import useContractStore from '../store/useContractStore';
-import { SERVICE_PACKAGES, SLA_TYPES } from '../data/slaData';
+import useSlaStore from '../store/useSlaStore';
 
 const ContractForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { contracts, addContract, updateContract, getContract, error } = useContractStore();
+    const { slas, packages, fetchSlas, fetchPackages } = useSlaStore();
     const isNew = !id;
 
     // Form State - Strictly matching table columns
@@ -16,7 +17,7 @@ const ContractForm = () => {
         client: '',
         description: '',
         folio: '',
-        slaType: 'Bajo',
+        slaType: 'Alto',
         projectName: '',
         pep: '',
         status: 'Preliminar',
@@ -42,6 +43,8 @@ const ContractForm = () => {
     };
 
     useEffect(() => {
+        fetchSlas();
+        fetchPackages();
         if (!isNew) {
             const existing = contracts.find(c => c.id === id);
             if (existing) {
@@ -197,7 +200,7 @@ const ContractForm = () => {
                         <div className="input-group">
                             <label>ANS ASOCIADO</label>
                             <select name="slaType" value={formData.slaType || 'Bajo'} onChange={handleChange}>
-                                {(SLA_TYPES || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                {(slas || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
                         </div>
                     </div>
@@ -214,7 +217,7 @@ const ContractForm = () => {
                             <label>Paquete de Servicio</label>
                             <input name="servicePackage" value={formData.servicePackage || ''} onChange={handleChange} list="packages-list" />
                             <datalist id="packages-list">
-                                {(SERVICE_PACKAGES || []).map(p => <option key={p} value={p} />)}
+                                {(packages || []).map(p => <option key={p.id} value={p.name} />)}
                             </datalist>
                         </div>
                         <div className="input-group">

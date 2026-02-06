@@ -64,7 +64,19 @@ const useCMDBStore = create((set, get) => ({
     },
 
     // Optional: Keep getCIById for instant lookups if already fetched
-    getCIById: (id) => get().cis.find((c) => c.id === id)
+    getCIById: (id) => get().cis.find((c) => c.id === id),
+
+    fetchCIBySerial: async (serial) => {
+        set({ loading: true });
+        try {
+            const res = await aiApi.getCIs({ search: serial, limit: 1 });
+            set({ loading: false });
+            return res.data?.[0] || null;
+        } catch (err) {
+            set({ error: err.message, loading: false });
+            return null;
+        }
+    }
 }));
 
 export default useCMDBStore;

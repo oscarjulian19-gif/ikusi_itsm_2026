@@ -98,10 +98,10 @@ const useIncidentStore = create((set, get) => ({
         } catch (err) { set({ error: err.message, loading: false }); }
     },
 
-    closeIncident: async (id) => {
+    confirmClosure: async (id) => {
         set({ loading: true });
         try {
-            const updated = await aiApi.closeTicket(id);
+            const updated = await aiApi.confirmClosure(id);
             set(state => ({
                 incidents: state.incidents.map(i => i.id === id ? updated : i),
                 currentIncident: updated,
