@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
-import IncidentForm from './pages/IncidentForm';
+import IncidentDetail from './pages/IncidentDetail';
 import ServiceCatalog from './pages/ServiceCatalog';
 import RequestForm from './pages/RequestForm';
 import ITILPractices from './pages/ITILPractices';
@@ -29,12 +29,12 @@ function App() {
 
           {/* Incident Management Routes */}
           <Route path="incidents" element={<Incidents type="incident" />} />
-          <Route path="incidents/new" element={<IncidentForm key="incident-new" type="incident" />} />
-          <Route path="incidents/:id" element={<IncidentForm key="incident-edit" type="incident" />} />
+          <Route path="incidents/new" element={<IncidentDetail key="incident-new" type="incident" />} />
+          <Route path="incidents/:id" element={<IncidentDetail key="incident-edit" type="incident" />} />
 
           <Route path="requests" element={<Incidents type="request" />} />
-          <Route path="requests/new" element={<IncidentForm key="request-new" type="request" />} />
-          <Route path="requests/:id" element={<IncidentForm key="request-edit" type="request" />} />
+          <Route path="requests/new" element={<IncidentDetail key="request-new" type="request" />} />
+          <Route path="requests/:id" element={<IncidentDetail key="request-edit" type="request" />} />
 
 
           {/* Contracts Management Routes */}
