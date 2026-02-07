@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, User, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../store/useAuthStore';
 
 const Topbar = () => {
   const [query, setQuery] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && query.trim()) {
       navigate(`/search?q=${encodeURIComponent(query)}`);
       setQuery('');
     }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
   return (
@@ -32,9 +40,28 @@ const Topbar = () => {
           <Bell size={20} />
           <span className="badge">3</span>
         </button>
-        <div className="user-profile">
-          <div className="avatar">AO</div>
-          <span className="username">Admin Operator</span>
+        <div className="relative">
+          <div className="user-profile" onClick={() => setShowMenu(!showMenu)}>
+            <div className="avatar" style={{ backgroundColor: user?.role === 'Admin' ? '#0D2472' : '#6DBE45' }}>
+              {getInitials(user?.full_name)}
+            </div>
+            <div className="hidden lg:block">
+              <span className="username" style={{ display: 'block' }}>{user?.full_name || 'Usuario'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{user?.role}</span>
+            </div>
+            <ChevronDown size={14} className={`transition-transform ${showMenu ? 'rotate-180' : ''}`} />
+          </div>
+
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-2xl py-2 z-50 animate-fade-in">
+              <button
+                className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-3 font-semibold"
+                onClick={() => { logout(); navigate('/login'); }}
+              >
+                <LogOut size={16} className="text-red-500" /> Cerrar Sesión
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -26,7 +26,28 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 # --- Endpoints ---
+
+@router.post("/login")
+def login(req: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    
+    if user.password != req.password:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active
+    }
 
 @router.get("/users", response_model=List[UserResponse])
 def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

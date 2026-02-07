@@ -163,6 +163,13 @@ export const aiApi = {
         });
     },
 
+    login: async (email, password) => {
+        return request('/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+    },
+
     // --- INCIDENTS (P7M6) ---
     getTickets: async () => {
         return request('/tickets?limit=100');

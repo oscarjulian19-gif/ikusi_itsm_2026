@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
@@ -18,12 +18,40 @@ import Catalog from './pages/Catalog';
 import CatalogForm from './pages/CatalogForm';
 import SlaPackages from './pages/SlaPackages';
 import SearchResults from './pages/SearchResults';
+import Login from './pages/Login';
+import useAuthStore from './store/useAuthStore';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { user } = useAuthStore();
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
+// Admin Route Component
+const AdminRoute = ({ children }) => {
+  const { user } = useAuthStore();
+  if (!user || user.role?.toLowerCase() !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
 
 function App() {
+  const { user } = useAuthStore();
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        {/* Public Routes */}
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+
+        {/* Protected Application Routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Dashboard />} />
           <Route path="search" element={<SearchResults />} />
 
@@ -36,13 +64,23 @@ function App() {
           <Route path="requests/new" element={<IncidentDetail key="request-new" type="request" />} />
           <Route path="requests/:id" element={<IncidentDetail key="request-edit" type="request" />} />
 
-
           {/* Contracts Management Routes */}
           <Route path="contracts" element={<ContractsList />} />
           <Route path="contracts/new" element={<ContractForm />} />
           <Route path="contracts/:id" element={<ContractForm />} />
 
-          <Route path="sla-packages" element={<SlaPackages />} />
+          {/* Admin Protected Routes */}
+          <Route path="sla-packages" element={
+            <AdminRoute>
+              <SlaPackages />
+            </AdminRoute>
+          } />
+
+          <Route path="users" element={
+            <AdminRoute>
+              <UsersList />
+            </AdminRoute>
+          } />
 
           <Route path="cmdb" element={<CMDB />} />
           <Route path="cmdb/new" element={<CMDBForm />} />
@@ -50,7 +88,7 @@ function App() {
 
           <Route path="itil" element={<ITILPractices />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="users" element={<UsersList />} />
+
           <Route path="settings" element={<ComingSoon title="Configuración" />} />
           <Route path="/analysis" element={<ComingSoon title="Análisis de Tendencias" />} />
           <Route path="/catalog" element={<Catalog />} />

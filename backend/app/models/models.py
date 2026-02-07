@@ -148,6 +148,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String)
     email = Column(String, unique=True, index=True)
+    password = Column(String, default="cisco") # Added for login
     role = Column(String)  # Admin, Resolutor, Agent, Supervisor
     job_title = Column(String) # Ingeniero L1, L2, etc.
     is_active = Column(Boolean, default=True)
